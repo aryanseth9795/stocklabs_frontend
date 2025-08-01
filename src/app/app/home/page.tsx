@@ -2,7 +2,7 @@ import React from "react";
 import UserInfo from "./_component/userInfo";
 import StockCard from "./_component/stockCard";
 
-function Page() {
+function Home() {
   const data = [
     {
       stocksymbol: "AAPL",
@@ -39,6 +39,41 @@ function Page() {
       stockChange: 1.5,
       stockChangePercentage: 1.0,
     },
+    {
+      stocksymbol: "AAPL",
+      stockName: "Apple Inc.",
+      stockPrice: 150,
+      stockChange: 1.5,
+      stockChangePercentage: 1.0,
+    },
+    {
+      stocksymbol: "AAPL",
+      stockName: "Apple Inc.",
+      stockPrice: 150,
+      stockChange: 1.5,
+      stockChangePercentage: 1.0,
+    },
+    {
+      stocksymbol: "AAPL",
+      stockName: "Apple Inc.",
+      stockPrice: 150,
+      stockChange: 1.5,
+      stockChangePercentage: 1.0,
+    },
+    {
+      stocksymbol: "AAPL",
+      stockName: "Apple Inc.",
+      stockPrice: 150,
+      stockChange: 1.5,
+      stockChangePercentage: 1.0,
+    },
+    {
+      stocksymbol: "AAPL",
+      stockName: "Apple Inc.",
+      stockPrice: 150,
+      stockChange: 1.5,
+      stockChangePercentage: 1.0,
+    },
   ];
 
   return (
@@ -55,4 +90,4 @@ function Page() {
   );
 }
 
-export default Page;
+export default Home;

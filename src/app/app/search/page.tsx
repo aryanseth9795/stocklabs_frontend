@@ -1,11 +1,11 @@
 import React from 'react'
 
-const Portfolio = () => {
+const Page = () => {
   return (
     <div>
-      
+      Search
     </div>
   )
 }
 
-export default Portfolio;
+export default Page
