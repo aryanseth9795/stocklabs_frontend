@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { House, BriefcaseBusiness, Search, User } from "lucide-react";
+import { House, BriefcaseBusiness, Search, User,ChartCandlestick } from "lucide-react";
 import Link from "next/link";
 
 const Navbar = () => {
@@ -10,13 +10,14 @@ const Navbar = () => {
     { name: "Home", icon: <House size={40} /> },
     { name: "Portfolio", icon: <BriefcaseBusiness size={40} /> },
     { name: "Search", icon: <Search size={40} /> },
+    { name: "History", icon: <ChartCandlestick size={40} /> },
     { name: "Account", icon: <User size={40} /> },
   ];
 
   return (
     <div className="bg-gray-300 text-black p-1 shadow-md border">
       <nav className="flex ">
-        <ul className="flex justify-between items-center w-full px-5">
+        <ul className="flex justify-around items-center w-full px-5">
           {navItems.map((item) => (
             <li
               key={item.name}
