@@ -28,7 +28,7 @@ const History = () => {
       {/* Content based on selection */}
       <div>
         {isTrade ? (
-          <div>
+          <div className="grid grid-cols-3 gap-4">
             <div className="text-center text-lg">Trade History Content</div>
           </div>
         ) : (
