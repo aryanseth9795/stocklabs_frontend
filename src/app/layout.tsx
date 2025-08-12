@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Merriweather } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { AuthProvider } from "@/lib/ContextApi";
 
 const MerriweatherFont = Merriweather({
   subsets: ["latin"],
@@ -19,7 +20,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={MerriweatherFont.className}>{children}
+      <body className={MerriweatherFont.className}>
+        <AuthProvider>{children}</AuthProvider>
         <Toaster position="top-right" />
       </body>
     </html>

@@ -1,136 +1,12 @@
-// "use client";
-// import React, { useEffect, useCallback } from "react";
-// import UserInfo from "./_component/userInfo";
-// import StockCard from "./_component/stockCard";
-// import { getSocket } from "@/lib/socket";
-
-// function Home() {
-//   interface Stock {
-//     stockName: string;
-//     stocksymbol: string;
-//     stockPrice: number;
-//     stockPriceINR: number;
-//     stockChange: number;
-//     stockChangeINR: number;
-//     stockChangePercentage: number;
-//     ts: string;
-//   }
-//   // const data = [
-//   //   {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //    {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //    {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //    {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //    {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //   {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //   {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //   {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //   {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   //   {
-//   //     stocksymbol: "AAPL",
-//   //     stockName: "Apple Inc.",
-//   //     stockPrice: 150,
-//   //     stockChange: 1.5,
-//   //     stockChangePercentage: 1.0,
-//   //   },
-//   // ];
-//   const [data, setData] = React.useState<Stock[]>([]);
-
-//   const handleUpdate = useCallback((data: Stock[]) => {
-//     console.log("handleUpdate called");
-//     console.log(data);
-//     setData(data);
-//   }, []);
-
-//   useEffect(() => {
-//     // 2. Grab the singleton socket
-//     const socket = getSocket();
-//     console.log(socket);
-//     // 3. Register your memoized handler
-//     socket.on("landing", handleUpdate);
-
-//     socket.emit("landing");
-
-//     // 4. Clean up on unmount (or if handleUpdate ever did change)
-//     return () => {
-//       socket.off("landing", handleUpdate);
-//     };
-//   }, [handleUpdate]);
-//   return (
-//     <div className="w-full h-screen flex flex-col gap-10 p-5">
-//       <UserInfo
-//         user={{ name: "Ayush Soni", walletAmount: 10000000, portfolioAmount: 50000 }}
-//       />
-//       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5">
-//         {data?.map((stock, index) => (
-//           <StockCard key={index} stock={stock} />
-//         ))}
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default Home;
-
 "use client";
 import React, { useEffect, useCallback } from "react";
 import UserInfo from "./_component/userInfo";
 import StockCard from "./_component/stockCard";
 import { getSocket } from "@/lib/socket";
-
+import axios from "axios";
+import { serverApiUrl } from "@/constant/config";
+import { useAuth } from "@/lib/ContextApi";
+import { toast } from "sonner";
 function Home() {
   interface Stock {
     stockName: string;
@@ -142,7 +18,7 @@ function Home() {
     stockChangePercentage: number;
     ts: string;
   }
-
+  const { user, setUser, setIsAuthed } = useAuth();
   const [data, setData] = React.useState<Stock[]>([]);
 
   const handleUpdate = useCallback((payload: Stock[]) => {
@@ -157,6 +33,33 @@ function Home() {
       socket.off("landing", handleUpdate);
     };
   }, [handleUpdate]);
+
+  const fetchUserDetail = async () => {
+    const tId = toast.loading("Loading...");
+    try {
+      const detail = await axios.get(`${serverApiUrl}/me`, {
+        withCredentials: true,
+      });
+      toast.success(detail.data.message, { id: tId });
+      setUser(detail.data.user);
+      setIsAuthed(true);
+    } catch (error) {
+      toast.error("Login For More Features !", { id: tId });
+    }
+  };
+
+  useEffect(() => {
+    if (
+      localStorage.getItem("Auth") === "false" ||
+      localStorage.getItem("Auth") === null
+    ) {
+      fetchUserDetail();
+      localStorage.setItem("Auth", "true");
+    }
+    else{
+      fetchUserDetail();
+    }
+  },[] );
 
   return (
     <div className="relative min-h-screen bg-black text-white overflow-x-hidden">
@@ -178,7 +81,11 @@ function Home() {
         </div>
 
         <UserInfo
-          user={{ name: "Ayush Soni", walletAmount: 10000000, portfolioAmount: 50000 }}
+          user={{
+            ...user,
+            walletAmount: Number(user?.balance),
+            portfolioAmount: 50000,
+          }}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">

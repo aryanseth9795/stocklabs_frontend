@@ -14,11 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
+import { useRouter } from "next/navigation";
 
 const Login = () => {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -30,17 +33,30 @@ const Login = () => {
     }
     const idtoast = toast.loading("Logging in");
     try {
-      const res = await axios.post(`${serverApiUrl}/login`, {
-        email,
-        password,
-      });
+      await axios.post(
+        `${serverApiUrl}/login`,
+        {
+          email,
+          password,
+        },
+        {
+          withCredentials: true,
+        }
+      );
       toast.success("Login successful", { id: idtoast });
-      console.log(res);
+
+      router.push("/app/home");
     } catch (error) {
       toast.error("Something went wrong", { id: idtoast });
       console.log(error);
     }
   };
+
+  useEffect(() => {
+    if (localStorage.getItem("Auth")) {
+      router.push("/app/home");
+    }
+  }, [router]);
 
   return (
     <div className="flex flex-col justify-center items-center h-screen bg-gray-100">

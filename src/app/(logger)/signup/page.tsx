@@ -17,8 +17,11 @@ import { toast } from "sonner";
 import { useState } from "react";
 import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
+import { useRouter } from "next/navigation";
 
 const SignUp = () => {
+
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -36,8 +39,12 @@ const SignUp = () => {
         email,
         password,
       });
+      if(res.status === 200){
+        window.location.href = "/app/home";
+      }
       toast.success("Login successful", { id: idtoast });
-      console.log(res);
+      router.push("/app/home");
+      
     } catch (error) {
       toast.error("Something Went wrong", { id: idtoast });
       console.log(error);
@@ -99,6 +106,7 @@ const SignUp = () => {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+             
             </div>
           </CardContent>
           <CardFooter className="flex-col gap-2 mt-5">

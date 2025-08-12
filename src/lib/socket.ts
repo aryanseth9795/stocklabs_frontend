@@ -1,32 +1,27 @@
+import { io, Socket } from "socket.io-client";
+import { useMemo } from "react";
 
-import { io, Socket } from 'socket.io-client'
-import { useMemo } from 'react'
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL!;
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL!
+let socket: Socket | null = null;
 
-let socket: Socket | null = null
-
-/**
- * Returns a singleton Socket.IO client instance.
- * Persists the connection & socket.id across route changes.
- */
 export function getSocket(): Socket {
-  if (typeof window === 'undefined') {
-    throw new Error('getSocket can only be used in the browser')
+  if (typeof window === "undefined") {
+    throw new Error("getSocket can only be used in the browser");
   }
   if (!socket) {
     socket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ["websocket"],
       autoConnect: true,
       withCredentials: true,
-    })
-    socket.on('connect', () => {
-      console.log('Socket Connected with ID:', socket!.id)
-    })
+    });
+    socket.on("connect", () => {
+      console.log("Socket Connected with ID:", socket!.id);
+    });
   }
-  return socket
+  return socket;
 }
 
 export function useSocket(): Socket {
-  return useMemo(() => getSocket(), [])
+  return useMemo(() => getSocket(), []);
 }
