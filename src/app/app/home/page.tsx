@@ -7,6 +7,7 @@ import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
 import { useAuth } from "@/lib/ContextApi";
 import { toast } from "sonner";
+
 function Home() {
   interface Stock {
     stockName: string;
@@ -42,9 +43,11 @@ function Home() {
       });
       toast.success(detail.data.message, { id: tId });
       setUser(detail.data.user);
+      console.log(detail.data.user);
       setIsAuthed(true);
     } catch (error) {
       toast.error("Login For More Features !", { id: tId });
+      console.log(error);
     }
   };
 
@@ -55,11 +58,10 @@ function Home() {
     ) {
       fetchUserDetail();
       localStorage.setItem("Auth", "true");
-    }
-    else{
+    } else {
       fetchUserDetail();
     }
-  },[] );
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-black text-white overflow-x-hidden">
@@ -80,13 +82,16 @@ function Home() {
           </div>
         </div>
 
-        <UserInfo
-          user={{
-            ...user,
-            walletAmount: Number(user?.balance),
-            portfolioAmount: 50000,
-          }}
-        />
+        {user && (
+          <UserInfo
+            user={{
+              name: user?.name,
+
+              walletAmount: Number(user?.balance),
+              portfolioAmount: Number(user?.totalInvested),
+            }}
+          />
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {data?.map((stock, index) => (

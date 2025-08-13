@@ -1,6 +1,6 @@
 "use client";
 
-import React, {  useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Toggle from "./_component/toggle";
 import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
@@ -33,15 +33,19 @@ const History = () => {
     try {
       setIsLoading(true);
       if (isTrade) {
-        axios.get(`${serverApiUrl}/tradeHistory`).then((res) => {
-          setData(res.data);
-          setIsLoading(false);
-        });
+        axios
+          .get(`${serverApiUrl}/tradehistory`, { withCredentials: true })
+          .then((res) => {
+            setData(res.data);
+            setIsLoading(false);
+          });
       } else {
-        axios.get(`${serverApiUrl}/transactions`).then((res) => {
-          setData(res.data);
-          setIsLoading(false);
-        });
+        axios
+          .get(`${serverApiUrl}/transactions`, { withCredentials: true })
+          .then((res) => {
+            setData(res.data);
+            setIsLoading(false);
+          });
       }
     } catch (error) {
       console.log(error);
