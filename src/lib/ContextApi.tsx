@@ -10,8 +10,9 @@ import React, {
 export type User = {
   id: string;
   email: string;
-  name?: string;
+  name: string;
   balance: number;
+  totalInvested: number;
 };
 export type AuthContextType = {
   user: User | null;
