@@ -30,6 +30,8 @@ function Portfolio() {
       stockChangePercentage: 1.0,
       invested: 1000,
       currentValue: 1500,
+         
+   
     },
      {
       stocksymbol: "AAPL",
@@ -37,6 +39,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
+         invested:500,
+    currentValue: 1000
     },
      {
       stocksymbol: "AAPL",
@@ -44,6 +48,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
+         invested:500,
+    currentValue: 1000
     },
     {
       stocksymbol: "AAPL",
@@ -51,6 +57,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
+         invested:500,
+    currentValue: 1000
     },
     {
       stocksymbol: "AAPL",
@@ -58,6 +66,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
+         invested:500,
+    currentValue: 1000
     },
     {
       stocksymbol: "AAPL",
@@ -65,6 +75,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
+         invested:500,
+    currentValue: 1000
     },
     {
       stocksymbol: "AAPL",
@@ -72,6 +84,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
+         invested:500,
+    currentValue: 1000
     },
     {
       stocksymbol: "AAPL",
@@ -79,6 +93,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
+      invested:500,
+    currentValue: 1000
     },
   ];
 
