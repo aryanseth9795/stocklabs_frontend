@@ -1,6 +1,8 @@
+"use client";
 import React from "react";
 import PortfolioCard from "./_component/portfolioCard";
 import PortfolioInfo from "./_component/portfolioInfo";
+import { useAuth } from "@/lib/ContextApi";
 
 function Portfolio() {
   const data = [
@@ -13,7 +15,7 @@ function Portfolio() {
       invested: 1000,
       currentValue: 1500,
     },
-     {
+    {
       stocksymbol: "AAPL",
       stockName: "Apple Inc.",
       stockPrice: 150,
@@ -22,7 +24,7 @@ function Portfolio() {
       invested: 1000,
       currentValue: 1500,
     },
-     {
+    {
       stocksymbol: "AAPL",
       stockName: "Apple Inc.",
       stockPrice: 150,
@@ -30,26 +32,6 @@ function Portfolio() {
       stockChangePercentage: 1.0,
       invested: 1000,
       currentValue: 1500,
-         
-   
-    },
-     {
-      stocksymbol: "AAPL",
-      stockName: "Apple Inc.",
-      stockPrice: 150,
-      stockChange: 1.5,
-      stockChangePercentage: 1.0,
-         invested:500,
-    currentValue: 1000
-    },
-     {
-      stocksymbol: "AAPL",
-      stockName: "Apple Inc.",
-      stockPrice: 150,
-      stockChange: 1.5,
-      stockChangePercentage: 1.0,
-         invested:500,
-    currentValue: 1000
     },
     {
       stocksymbol: "AAPL",
@@ -57,8 +39,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
-         invested:500,
-    currentValue: 1000
+      invested: 500,
+      currentValue: 1000,
     },
     {
       stocksymbol: "AAPL",
@@ -66,8 +48,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
-         invested:500,
-    currentValue: 1000
+      invested: 500,
+      currentValue: 1000,
     },
     {
       stocksymbol: "AAPL",
@@ -75,8 +57,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
-         invested:500,
-    currentValue: 1000
+      invested: 500,
+      currentValue: 1000,
     },
     {
       stocksymbol: "AAPL",
@@ -84,8 +66,8 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
-         invested:500,
-    currentValue: 1000
+      invested: 500,
+      currentValue: 1000,
     },
     {
       stocksymbol: "AAPL",
@@ -93,15 +75,35 @@ function Portfolio() {
       stockPrice: 150,
       stockChange: 1.5,
       stockChangePercentage: 1.0,
-      invested:500,
-    currentValue: 1000
+      invested: 500,
+      currentValue: 1000,
+    },
+    {
+      stocksymbol: "AAPL",
+      stockName: "Apple Inc.",
+      stockPrice: 150,
+      stockChange: 1.5,
+      stockChangePercentage: 1.0,
+      invested: 500,
+      currentValue: 1000,
+    },
+    {
+      stocksymbol: "AAPL",
+      stockName: "Apple Inc.",
+      stockPrice: 150,
+      stockChange: 1.5,
+      stockChangePercentage: 1.0,
+      invested: 500,
+      currentValue: 1000,
     },
   ];
 
+  const { user } = useAuth();
+  console.log(user);
   return (
     <div className="w-full h-screen flex flex-col gap-10 p-5">
       <PortfolioInfo
-        portfolio={{invested:15000, CurrentValue: 1000, Profit: 1000-500 }}
+        portfolio={{ invested: 15000, CurrentValue: 1000, Profit: 1000 - 500 }}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {data?.map((stock, index) => (
