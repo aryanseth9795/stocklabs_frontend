@@ -42,7 +42,7 @@ const SignUp = () => {
       if(res.status === 200){
         window.location.href = "/app/home";
       }
-      toast.success("Login successful", { id: idtoast });
+      toast.success("Sign up successful", { id: idtoast });
       router.push("/app/home");
       
     } catch (error) {

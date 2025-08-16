@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
+import { toast } from "sonner";
 
 const History = () => {
   const [isTrade, setIsTrade] = useState<boolean>(true);
@@ -24,7 +25,7 @@ const History = () => {
   const [data, setData] = useState([]);
   const [isAuthed, setIsAuthed] = useState(false);
   useEffect(() => {
-    if (localStorage.getItem("Auth")) setIsAuthed(true);
+    if (localStorage.getItem("Auth") === "true") setIsAuthed(true);
     else setIsAuthed(false);
   }, []);
 
@@ -32,19 +33,22 @@ const History = () => {
     if (!isAuthed) return;
     try {
       setIsLoading(true);
+      const tid = toast.loading("Loading history...");
       if (isTrade) {
         axios
           .get(`${serverApiUrl}/tradehistory`, { withCredentials: true })
           .then((res) => {
-            setData(res.data);
+            setData(res.data.orders);
             setIsLoading(false);
+            toast.success(res.data.message, { id: tid });
           });
       } else {
         axios
           .get(`${serverApiUrl}/transactions`, { withCredentials: true })
           .then((res) => {
-            setData(res.data);
+            setData(res.data.transactions);
             setIsLoading(false);
+            toast.success(res.data.message, { id: tid });
           });
       }
     } catch (error) {

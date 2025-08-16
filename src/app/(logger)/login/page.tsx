@@ -53,7 +53,7 @@ const Login = () => {
   };
 
   useEffect(() => {
-    if (localStorage.getItem("Auth")) {
+    if (localStorage.getItem("Auth") === "true") {
       router.push("/app/home");
     }
   }, [router]);
