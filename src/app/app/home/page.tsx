@@ -73,11 +73,9 @@ function Home() {
     } else {
       fetchUserDetail();
     }
-  }, [fetchUserDetail]);
+  }, []);
 
-  useEffect(() => {
-    fetchUserDetail();
-  }, [open, fetchUserDetail]);
+
 
   const onCardClick = (s: Stock) => {
     setSelected(s);
@@ -127,6 +125,7 @@ function Home() {
         stock={selected}
         walletUSD={Number(user?.balance) || 0}
         userId={user?.id || ""}
+        accountfetch={fetchUserDetail}
       />} 
     </div>
   );

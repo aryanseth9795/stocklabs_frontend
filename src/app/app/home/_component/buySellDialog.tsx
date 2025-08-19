@@ -42,6 +42,7 @@ interface Props {
   stock: Stock | null;
   walletUSD: number;
   userId: string;
+  accountfetch: () => void;
 }
 
 function BuySellDialog({
@@ -50,6 +51,7 @@ function BuySellDialog({
   stock,
   walletUSD,
   userId,
+  accountfetch,
 }: Props) {
   const [isBuy, setIsBuy] = React.useState(true);
   const [mode, setMode] = React.useState<"amount" | "quantity">("amount");
@@ -140,14 +142,16 @@ function BuySellDialog({
       });
       toast.success("Order placed successfully.", { id: tid });
       onOpenChange(false);
-    } catch (err:{response:{data:{message:string}},message:string}) {
+    } catch (err: unknown) {
       const msg =
-        (err?.response?.data?.message as string) ||
-        (err?.message as string) ||
-        "Failed to place order.";
+        (axios.isAxiosError(err) &&
+        typeof err.response?.data?.message === "string"
+          ? err.response.data.message
+          : err instanceof Error && err.message) || "Failed to place order.";
       toast.error(msg, { id: tid });
     } finally {
       setSubmitting(false);
+      accountfetch();
     }
   };
   console.log(disableCta);
