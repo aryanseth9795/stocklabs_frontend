@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { serverApiUrl } from "@/constant/config";
-import { useAuth } from "@/lib/ContextApi";
+
 
 interface Stock {
   stockName: string;
@@ -60,9 +60,9 @@ function BuySellDialog({
   const [lockedPrice, setLockedPrice] = React.useState<number | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
-  const { isAuthed } = useAuth();
+  // const { isAuthed } = useAuth();
   React.useEffect(() => {
-    if (!isAuthed) {
+    if (localStorage.getItem("Auth") === "false" || null) {
       toast.error("Please login to place an order.");
       return;
     }
@@ -73,7 +73,7 @@ function BuySellDialog({
       setQtyStr("");
       setLockedPrice(Number(stock.stockPrice));
     }
-  }, [open, stock, isAuthed]);
+  }, [open, stock]);
 
   const price = lockedPrice ?? stock?.stockPrice ?? 0;
 
@@ -154,7 +154,7 @@ function BuySellDialog({
       accountfetch();
     }
   };
-  console.log(disableCta);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border border-white/10 bg-white/10 backdrop-blur-xl rounded-2xl p-0 text-white max-w-lg shadow-2xl">

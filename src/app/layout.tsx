@@ -8,9 +8,14 @@ const MerriweatherFont = Merriweather({
   subsets: ["latin"],
   weight: ["400", "700"],
 });
+
+
 export const metadata: Metadata = {
   title: "StockLabs",
-  description: "DEVELOPED BY ARYAN SETH",
+  description: "Paper Trading Platform - DEVELOPED BY ARYAN SETH",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
