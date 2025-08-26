@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useEffect, useCallback } from "react";
 import UserInfo from "./_component/userInfo";
@@ -55,7 +54,7 @@ function Home() {
       console.log(error);
       return false;
     }
-  }, [setIsAuthed,setUser]);
+  }, [setIsAuthed, setUser]);
 
   useEffect(() => {
     if (
@@ -73,9 +72,9 @@ function Home() {
     } else {
       fetchUserDetail();
     }
-  }, []);
+  }, [fetchUserDetail]);
 
-
+  console.log("run");
 
   const onCardClick = (s: Stock) => {
     setSelected(s);
@@ -119,14 +118,16 @@ function Home() {
         </div>
       </div>
 
-     {open && <BuySellDialog
-        open={open}
-        onOpenChange={setOpen}
-        stock={selected}
-        walletUSD={Number(user?.balance) || 0}
-        userId={user?.id || ""}
-        accountfetch={fetchUserDetail}
-      />} 
+      {open && (
+        <BuySellDialog
+          open={open}
+          onOpenChange={setOpen}
+          stock={selected}
+          walletUSD={Number(user?.balance) || 0}
+          userId={user?.id || ""}
+          accountfetch={fetchUserDetail}
+        />
+      )}
     </div>
   );
 }
