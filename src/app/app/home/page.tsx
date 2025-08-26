@@ -72,7 +72,7 @@ function Home() {
     } else {
       fetchUserDetail();
     }
-  }, [fetchUserDetail]);
+  }, []);
 
   console.log("run");
 
