@@ -115,11 +115,12 @@ import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/ContextApi";
 
 function clearAllStorage() {
   try {
     localStorage.clear();
-    sessionStorage.clear();
+
   } catch {}
 }
 
@@ -128,6 +129,8 @@ export function LogoutCard() {
   const [pending, setPending] = React.useState(false);
   const router = useRouter();
 
+
+  const {setUser}=useAuth();
   const handleLogout = async () => {
     if (pending) return;
     setPending(true);
@@ -140,6 +143,7 @@ export function LogoutCard() {
       });
 
       clearAllStorage();
+      setUser(null);
       toast.success("Logged out successfully", { id: tid });
 
       router.replace("/app/home");
