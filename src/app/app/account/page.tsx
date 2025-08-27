@@ -11,12 +11,14 @@ const demoUser: User = {
   joinedAt: "2024-11-02",
 };
 
+
 const demoPL: PLPoint[] = Array.from({ length: 90 }).map((_, i) => {
   const d = new Date();
   d.setDate(d.getDate() - (89 - i));
   const base = Math.sin(i / 7) * 1200 + Math.random() * 400 - 200;
   return { date: d.toISOString().slice(0, 10), value: Math.round(base) };
 });
+
 
 export default function AccountPage() {
   return (
