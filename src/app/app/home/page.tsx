@@ -74,7 +74,7 @@ function Home() {
     }
   }, []);
 
-  console.log("run");
+  
 
   const onCardClick = (s: Stock) => {
     setSelected(s);

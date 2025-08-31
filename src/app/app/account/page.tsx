@@ -1,16 +1,20 @@
 // File: src/app/app/account/page.tsx
+
+
 "use client";
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { UserCard, PLCard, LogoutCard } from "./_component";
 import type { User, PLPoint } from "./_component/types";
+import { serverApiUrl } from "@/constant/config";
+import axios from "axios";
+
 
 const demoUser: User = {
   name: "Aryan Seth",
-  email: "aryan@example.com",
-  handle: "@aryan",
+  email: "aryadfd@example.com",
+  handle: "@aryan365",
   joinedAt: "2024-11-02",
 };
-
 
 const demoPL: PLPoint[] = Array.from({ length: 90 }).map((_, i) => {
   const d = new Date();
@@ -19,8 +23,22 @@ const demoPL: PLPoint[] = Array.from({ length: 90 }).map((_, i) => {
   return { date: d.toISOString().slice(0, 10), value: Math.round(base) };
 });
 
-
 export default function AccountPage() {
+  const [userDetail, setUserDetail] = useState<User>(demoUser );
+
+  const fetchdetail = useCallback(async () => {
+    const response = await axios.get(`${serverApiUrl}/account`, {
+      withCredentials: true,
+    });
+    setUserDetail(response.data.user);
+  }, []);
+
+  useEffect(() => {
+    fetchdetail();
+  }, []);
+
+  console.log(userDetail);
+
   return (
     <div className="min-h-screen w-full bg-neutral-950 text-zinc-100 mb-20">
       <div className="mx-auto max-w-7xl px-4 py-6">
@@ -42,7 +60,10 @@ export default function AccountPage() {
             <PLCard data={demoPL} />
           </div>
         </div>
-
+        <div>
+          {" "}
+          <h1>This will be updated soon to fetch data from backend.</h1>
+        </div>
         <div className="mt-10 mb-20">
           <LogoutCard />
         </div>
