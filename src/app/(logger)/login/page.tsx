@@ -33,16 +33,10 @@ const Login = () => {
     }
     const idtoast = toast.loading("Logging in");
     try {
-      await axios.post(
-        `${serverApiUrl}/login`,
-        {
-          email,
-          password,
-        },
-        {
-          withCredentials: true,
-        }
-      );
+      await axios.post(`${serverApiUrl}/login`, {
+        email,
+        password,
+      });
       toast.success("Login successful", { id: idtoast });
 
       router.push("/app/home");
@@ -93,7 +87,7 @@ const Login = () => {
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
                   <a
-                    href="#"
+                    href="/login/forget-password"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
                     Forgot your password?

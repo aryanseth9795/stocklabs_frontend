@@ -51,7 +51,7 @@ function Home() {
       return true;
     } catch (error) {
       toast.error("Login For More Features !", { id: tId });
-      console.log(error);
+    
       return false;
     }
   }, [setIsAuthed, setUser]);
