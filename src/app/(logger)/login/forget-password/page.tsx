@@ -18,8 +18,7 @@ import {
 import { serverApiUrl } from "@/constant/config";
 import { toast } from "sonner";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
