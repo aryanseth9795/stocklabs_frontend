@@ -18,8 +18,6 @@ import {
 import { serverApiUrl } from "@/constant/config";
 import { toast } from "sonner";
 
-
-
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,12 +62,8 @@ export default function ForgotPasswordForm() {
           text: "Something went wrong. Please try again.",
         });
       }
-    } catch (err: any) {
-      const serverMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Unable to reset password.";
+    } catch {
+      const serverMsg = "Unable to reset password.";
       setMsg({ type: "error", text: serverMsg });
     } finally {
       setLoading(false);
@@ -122,7 +116,11 @@ export default function ForgotPasswordForm() {
                 aria-label={showPw ? "Hide password" : "Show password"}
                 tabIndex={-1}
               >
-                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPw ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </button>
             </div>
           </div>
@@ -154,4 +152,3 @@ export default function ForgotPasswordForm() {
     </Card>
   );
 }
-

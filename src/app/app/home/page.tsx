@@ -49,7 +49,7 @@ function Home() {
       setUser(detail.data.user);
       setIsAuthed(true);
       return true;
-    } catch (error) {
+    } catch  {
       toast.error("Login For More Features !", { id: tId });
     
       return false;
@@ -72,7 +72,7 @@ function Home() {
     } else {
       fetchUserDetail();
     }
-  }, []);
+  }, [fetchUserDetail]);
 
   
 

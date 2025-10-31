@@ -35,7 +35,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     fetchdetail();
-  }, []);
+  }, [fetchdetail]);
 
   console.log(userDetail);
 
