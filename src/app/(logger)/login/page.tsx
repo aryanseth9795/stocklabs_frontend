@@ -18,9 +18,11 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/ContextApi";
 
 const Login = () => {
   const router = useRouter();
+  const { isAuthed, setIsAuthed } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,15 +32,17 @@ const Login = () => {
     console.log("login");
     if (!email || !password) {
       toast.error("Please fill all the fields");
+      return;
     }
     const idtoast = toast.loading("Logging in");
     try {
-      await axios.post(`${serverApiUrl}/login`, {
-        email,
-        password,
-      });
+      await axios.post(
+        `${serverApiUrl}/login`,
+        { email, password },
+        { withCredentials: true },
+      );
       toast.success("Login successful", { id: idtoast });
-
+      setIsAuthed(true);
       router.push("/app/home");
     } catch (error) {
       toast.error("Something went wrong", { id: idtoast });
@@ -47,10 +51,10 @@ const Login = () => {
   };
 
   useEffect(() => {
-    if (localStorage.getItem("Auth") === "true") {
+    if (isAuthed) {
       router.push("/app/home");
     }
-  }, [router]);
+  }, [isAuthed, router]);
 
   return (
     <div className="flex flex-col justify-center items-center h-screen bg-gray-100">

@@ -18,16 +18,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/ContextApi";
 
 const History = () => {
   const [isTrade, setIsTrade] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [data, setData] = useState([]);
-  const [isAuthed, setIsAuthed] = useState(false);
-  useEffect(() => {
-    if (localStorage.getItem("Auth") === "true") setIsAuthed(true);
-    else setIsAuthed(false);
-  }, []);
+  const { isAuthed } = useAuth();
 
   useEffect(() => {
     if (!isAuthed) return;

@@ -21,17 +21,10 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function AccountPage() {
-  const { user: authUser } = useAuth();
+  const { user: authUser, isAuthed } = useAuth();
   const [userDetail, setUserDetail] = useState<User | null>(null);
   const [plStats, setPlStats] = useState<PLStats | null>(null);
   const [plData, setPlData] = useState<PLPoint[]>([]);
-  const [isAuthed, setIsAuthed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsAuthed(localStorage.getItem("Auth") === "true");
-    }
-  }, []);
 
   const fetchUserDetail = useCallback(async () => {
     try {

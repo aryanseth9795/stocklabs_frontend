@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { serverApiUrl } from "@/constant/config";
-
+import { useAuth } from "@/lib/ContextApi";
 
 interface Stock {
   stockName: string;
@@ -60,10 +60,10 @@ function BuySellDialog({
   const [lockedPrice, setLockedPrice] = React.useState<number | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
-  // const { isAuthed } = useAuth();
+  const { isAuthed } = useAuth();
   React.useEffect(() => {
-    if (localStorage.getItem("Auth") === "false" || null) {
-      toast.error("Please login to place an order.");
+    if (!isAuthed) {
+      // toast.error("Please login to place an order.");
       return;
     }
     if (open && stock) {
@@ -86,8 +86,8 @@ function BuySellDialog({
         ? a
         : 0
       : isFinite(q)
-      ? q * price
-      : 0;
+        ? q * price
+        : 0;
   }, [amountStr, qtyStr, mode, price]);
 
   const qty = React.useMemo(() => {
@@ -97,8 +97,8 @@ function BuySellDialog({
     return mode === "amount"
       ? (isFinite(a) ? a : 0) / price
       : isFinite(q)
-      ? q
-      : 0;
+        ? q
+        : 0;
   }, [amountStr, qtyStr, mode, price]);
 
   const insufficientFunds = isBuy && amount > walletUSD;
@@ -133,7 +133,7 @@ function BuySellDialog({
     };
 
     const tid = toast.loading(
-      isBuy ? "Placing buy order…" : "Placing sell order…"
+      isBuy ? "Placing buy order…" : "Placing sell order…",
     );
     setSubmitting(true);
     try {
@@ -375,8 +375,8 @@ function BuySellDialog({
             {submitting
               ? "Submitting…"
               : isBuy
-              ? "Place Buy Order"
-              : "Place Sell Order"}
+                ? "Place Buy Order"
+                : "Place Sell Order"}
           </Button>
         </DialogFooter>
       </DialogContent>

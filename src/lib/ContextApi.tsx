@@ -45,9 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setIsAuthed(false);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("Auth");
-    }
+    // Cookie is cleared server-side, no need for localStorage
   };
 
   const value = useMemo(

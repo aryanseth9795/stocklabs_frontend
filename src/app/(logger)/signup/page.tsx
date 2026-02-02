@@ -18,10 +18,11 @@ import { useState } from "react";
 import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/ContextApi";
 
 const SignUp = () => {
-
   const router = useRouter();
+  const { setIsAuthed } = useAuth();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -31,20 +32,20 @@ const SignUp = () => {
 
     if (!email || !password || !name) {
       toast.error("Please fill all the fields");
+      return;
     }
     const idtoast = toast.loading("Signing Up");
     try {
-      const res = await axios.post(`${serverApiUrl}/signup`, {
-        name,
-        email,
-        password,
-      });
-      if(res.status === 200){
-        window.location.href = "/app/home";
+      const res = await axios.post(
+        `${serverApiUrl}/signup`,
+        { name, email, password },
+        { withCredentials: true },
+      );
+      if (res.status === 200) {
+        toast.success("Sign up successful", { id: idtoast });
+        setIsAuthed(true);
+        router.push("/app/home");
       }
-      toast.success("Sign up successful", { id: idtoast });
-      router.push("/app/home");
-      
     } catch (error) {
       toast.error("Something Went wrong", { id: idtoast });
       console.log(error);
@@ -106,7 +107,6 @@ const SignUp = () => {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-             
             </div>
           </CardContent>
           <CardFooter className="flex-col gap-2 mt-5">

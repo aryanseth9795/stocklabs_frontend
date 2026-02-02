@@ -47,11 +47,9 @@ function Home() {
       });
       setUser(detail.data.user);
       setIsAuthed(true);
-      localStorage.setItem("Auth", "true");
       return true;
     } catch {
       setIsAuthed(false);
-      localStorage.setItem("Auth", "false");
       return false;
     }
   }, [setIsAuthed, setUser]);
@@ -65,7 +63,7 @@ function Home() {
   const onCardClick = (s: Stock) => {
     console.log("clicked");
     router.push(`/app/stock/${s.stocksymbol.toUpperCase()}`);
-   console.log(s.stocksymbol.toUpperCase());
+    console.log(s.stocksymbol.toUpperCase());
   };
 
   return (

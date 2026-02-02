@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import BuySellDialog from "../home/_component/buySellDialog";
+import { useAuth } from "@/lib/ContextApi";
 
 // ---------- Types from server ----------
 type UserData = {
@@ -137,13 +138,7 @@ function PortfolioPage() {
   );
 
   // auth state
-  const [isAuthed, setIsAuthed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsAuthed(localStorage.getItem("Auth") === "true");
-    }
-  }, []);
+  const { isAuthed } = useAuth();
 
   // handlers
   const handlePortfolioInfo = useCallback((payload: unknown) => {
