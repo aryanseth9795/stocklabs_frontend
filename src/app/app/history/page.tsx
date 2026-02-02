@@ -101,21 +101,28 @@ const History = () => {
 
       {/* Auth dialog */}
       <Dialog open={!isAuthed}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="bg-neutral-950 border-white/10 text-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-white">
               <Lock size={18} /> Login required
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-zinc-400">
               Login first to access your Transaction or Trade.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:justify-end">
             <Link href="/login">
-              <Button>Go to Login</Button>
+              <Button className="bg-indigo-500 hover:bg-indigo-600 text-white">
+                Go to Login
+              </Button>
             </Link>
-            <Link href="/">
-              <Button variant="outline">Back to Home</Button>
+            <Link href="/app/home">
+              <Button
+                variant="outline"
+                className="border-white/20 text-white hover:bg-white/10 bg-black"
+              >
+                Back to Home
+              </Button>
             </Link>
           </DialogFooter>
         </DialogContent>

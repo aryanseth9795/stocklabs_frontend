@@ -6,6 +6,11 @@ import React, {
   useState,
   ReactNode,
 } from "react";
+import axios from "axios";
+
+const serverApiUrl = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1`
+  : "http://localhost:3000/api/v1";
 
 export type User = {
   id: string;
@@ -13,29 +18,41 @@ export type User = {
   name: string;
   balance: number;
   totalInvested: number;
+  createdAt?: string;
 };
 export type AuthContextType = {
   user: User | null;
   isAuthed: boolean;
   setIsAuthed: (isAuthed: boolean) => void;
   setUser: (u: User | null) => void;
-  logout: () => Promise<void> | void;
+  logout: () => Promise<void>;
 };
 
 // ✅ export the value
 export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isAuthed, setIsAuthed] = useState(false);
+
   const logout = async () => {
+    try {
+      await axios.get(`${serverApiUrl}/logout`, { withCredentials: true });
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
     setUser(null);
+    setIsAuthed(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("Auth");
+    }
   };
 
   const value = useMemo(
-    () => ({ user, isAuthed: !!user, setUser, logout, setIsAuthed: () => {} }),
-    [user]
+    () => ({ user, isAuthed, setUser, logout, setIsAuthed }),
+    [user, isAuthed],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

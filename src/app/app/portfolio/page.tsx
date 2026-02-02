@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { getSocket } from "@/lib/socket";
 import { motion } from "framer-motion";
 import {
@@ -9,6 +10,7 @@ import {
   Clock,
   PieChart as PieIcon,
   Wallet,
+  Lock,
 } from "lucide-react";
 import {
   PieChart,
@@ -17,6 +19,15 @@ import {
   ResponsiveContainer,
   Tooltip as ReTooltip,
 } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import BuySellDialog from "../home/_component/buySellDialog";
 
 // ---------- Types from server ----------
@@ -122,8 +133,17 @@ function PortfolioPage() {
   // dialog state
   const [tradeOpen, setTradeOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState<StockForDialog | null>(
-    null
+    null,
   );
+
+  // auth state
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsAuthed(localStorage.getItem("Auth") === "true");
+    }
+  }, []);
 
   // handlers
   const handlePortfolioInfo = useCallback((payload: unknown) => {
@@ -157,7 +177,7 @@ function PortfolioPage() {
       setTicks(Array.isArray(payload.ticks) ? payload.ticks : []);
       setLastBatchTs(payload.ts || "");
     },
-    []
+    [],
   );
 
   // socket wiring
@@ -215,7 +235,7 @@ function PortfolioPage() {
       const t = bySymbol.get(symbolUpper);
       const pos = positions.find(
         (p) =>
-          (p.stockSymbol || p.stockName || "").toUpperCase() === symbolUpper
+          (p.stockSymbol || p.stockName || "").toUpperCase() === symbolUpper,
       );
       if (!t && !pos) return null;
 
@@ -240,7 +260,7 @@ function PortfolioPage() {
         ts: t?.ts || new Date().toLocaleTimeString(),
       };
     },
-    [bySymbol, positions, fx]
+    [bySymbol, positions, fx],
   );
 
   // ---------- Derived UI state ----------
@@ -333,12 +353,15 @@ function PortfolioPage() {
       setSelectedStock(stock);
       setTradeOpen(Boolean(stock));
     },
-    [buildDialogStock]
+    [buildDialogStock],
   );
 
   return (
     <div className="min-h-screen w-full bg-neutral-950 text-zinc-100">
-      <div className="mx-auto max-w-7xl px-4 py-6">
+      {/* Content with blur when not authenticated */}
+      <div
+        className={`mx-auto max-w-7xl px-4 py-6 ${!isAuthed ? "blur-sm pointer-events-none" : ""}`}
+      >
         {/* Header + Greeting */}
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -401,6 +424,35 @@ function PortfolioPage() {
         userId={user?.id || ""}
         accountfetch={accountfetch}
       />
+
+      {/* Auth dialog */}
+      <Dialog open={!isAuthed}>
+        <DialogContent className="bg-neutral-950 border-white/10 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock size={18} /> Login Required
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Please login first to access your portfolio and holdings.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Link href="/login">
+              <Button className="bg-indigo-500 hover:bg-indigo-600 text-white">
+                Go to Login
+              </Button>
+            </Link>
+            <Link href="/app/home">
+              <Button
+                variant="outline"
+                className="border-white/20 text-white hover:bg-white/4  bg-black"
+              >
+                Back to Home
+              </Button>
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -539,7 +591,7 @@ function AllocationCard({
             <ReTooltip
               formatter={(
                 value: number | string | (number | string)[],
-                name: string
+                name: string,
               ) => {
                 const v = Array.isArray(value)
                   ? Number(value[0])

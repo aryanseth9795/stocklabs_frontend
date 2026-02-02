@@ -1,7 +1,14 @@
 "use client";
-import { House, BriefcaseBusiness, User, ChartCandlestick } from "lucide-react";
+import {
+  House,
+  BriefcaseBusiness,
+  User,
+  ChartCandlestick,
+  LogIn,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/ContextApi";
 
 const nameMap: Record<string, string> = {
   home: "Home",
@@ -12,6 +19,7 @@ const nameMap: Record<string, string> = {
 
 const Navbar = () => {
   const pathname = usePathname();
+  const { isAuthed } = useAuth();
   const parts = (pathname || "/").split("/").filter(Boolean);
   const appIdx = parts.indexOf("app");
   const seg = appIdx >= 0 && parts[appIdx + 1] ? parts[appIdx + 1] : "home";
@@ -27,7 +35,7 @@ const Navbar = () => {
   return (
     <div className="sticky bottom-0 z-50 w-full border-t border-white/10 bg-white/5 backdrop-blur supports-[backdrop-filter]:bg-black/40 text-white">
       <nav className="mx-auto max-w-3xl">
-        <ul className="relative grid grid-cols-4 gap-1 px-3 py-2">
+        <ul className="relative grid grid-cols-5 gap-1 px-3 py-2">
           {navItems.map(({ name, Icon }) => {
             const isActive = active === name;
             return (
@@ -40,7 +48,10 @@ const Navbar = () => {
                   aria-current={isActive ? "page" : undefined}
                 >
                   <div className="relative">
-                    <Icon size={24} className="transition group-hover:scale-105" />
+                    <Icon
+                      size={24}
+                      className="transition group-hover:scale-105"
+                    />
                     {isActive && (
                       <span
                         aria-hidden
@@ -59,6 +70,24 @@ const Navbar = () => {
               </li>
             );
           })}
+
+          {/* Login Button - only shown when not authenticated */}
+          {!isAuthed && (
+            <li className="relative">
+              <Link
+                href="/login"
+                className="group flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition text-emerald-400 hover:text-emerald-300"
+              >
+                <div className="relative">
+                  <LogIn
+                    size={24}
+                    className="transition group-hover:scale-105"
+                  />
+                </div>
+                <span className="text-[11px] leading-none">Login</span>
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
     </div>
@@ -66,4 +95,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

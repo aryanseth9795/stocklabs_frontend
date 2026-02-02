@@ -17,26 +17,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { LogOut } from "lucide-react";
-import axios from "axios";
-import { serverApiUrl } from "@/constant/config";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/ContextApi";
-
-function clearAllStorage() {
-  try {
-    localStorage.clear();
-  } catch {
-    console.warn("localStorage not available");
-  }
-}
 
 export function LogoutCard() {
   const [confirming, setConfirming] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const router = useRouter();
 
-  const { setUser } = useAuth();
+  const { logout, setIsAuthed } = useAuth();
   const handleLogout = async () => {
     if (pending) return;
     setPending(true);
@@ -44,12 +34,8 @@ export function LogoutCard() {
     setConfirming(false);
 
     try {
-      await axios.get(`${serverApiUrl}/logout`, {
-        withCredentials: true,
-      });
-
-      clearAllStorage();
-      setUser(null);
+      await logout();
+      setIsAuthed(false);
       toast.success("Logged out successfully", { id: tid });
 
       router.replace("/app/home");
@@ -88,10 +74,10 @@ export function LogoutCard() {
       </CardContent>
 
       <Dialog open={confirming} onOpenChange={setConfirming}>
-        <DialogContent className="bg-neutral-950 border-white/10">
+        <DialogContent className="bg-neutral-950 border-white/10 text-white">
           <DialogHeader>
-            <DialogTitle>Confirm logout</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white">Confirm logout</DialogTitle>
+            <DialogDescription className="text-zinc-400">
               Are you sure you want to logout? You will need to log in again to
               access your account.
             </DialogDescription>

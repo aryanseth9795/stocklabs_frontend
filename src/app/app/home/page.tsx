@@ -1,13 +1,12 @@
 "use client";
 import React, { useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import UserInfo from "./_component/userInfo";
 import StockCard from "./_component/stockCard";
-import BuySellDialog from "./_component/buySellDialog";
 import { getSocket } from "@/lib/socket";
 import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
 import { useAuth } from "@/lib/ContextApi";
-import { toast } from "sonner";
 
 function Home() {
   interface Stock {
@@ -22,14 +21,15 @@ function Home() {
   }
 
   const { user, setUser, setIsAuthed, isAuthed } = useAuth();
+  const router = useRouter();
   const [data, setData] = React.useState<Stock[]>([]);
-  const [open, setOpen] = React.useState(false);
-  const [selected, setSelected] = React.useState<Stock | null>(null);
 
+  // Handle websocket updates for stock data - runs immediately without auth
   const handleUpdate = useCallback((payload: Stock[]) => {
     setData(payload);
   }, []);
 
+  // Websocket connection - runs in parallel with auth, doesn't wait
   useEffect(() => {
     const socket = getSocket();
     socket.on("landing", handleUpdate);
@@ -39,46 +39,33 @@ function Home() {
     };
   }, [handleUpdate]);
 
+  // Auth check - runs silently in parallel, doesn't block stock data
   const fetchUserDetail = useCallback(async () => {
-    const tId = toast.loading("Loading...");
     try {
       const detail = await axios.get(`${serverApiUrl}/me`, {
         withCredentials: true,
       });
-      toast.success(detail.data.message, { id: tId });
       setUser(detail.data.user);
       setIsAuthed(true);
+      localStorage.setItem("Auth", "true");
       return true;
-    } catch  {
-      toast.error("Login For More Features !", { id: tId });
-    
+    } catch {
+      setIsAuthed(false);
+      localStorage.setItem("Auth", "false");
       return false;
     }
   }, [setIsAuthed, setUser]);
 
+  // Auth runs in parallel - no blocking, no loading toast
   useEffect(() => {
-    if (
-      localStorage.getItem("Auth") === "false" ||
-      localStorage.getItem("Auth") === null
-    ) {
-      fetchUserDetail().then((res) => {
-        console.log("User detail fetched:", res);
-        if (res) {
-          localStorage.setItem("Auth", "true");
-        } else {
-          localStorage.setItem("Auth", "false");
-        }
-      });
-    } else {
-      fetchUserDetail();
-    }
+    fetchUserDetail();
   }, [fetchUserDetail]);
 
-  
-
+  // Navigate to stock detail page with TradingView chart
   const onCardClick = (s: Stock) => {
-    setSelected(s);
-    setOpen(true);
+    console.log("clicked");
+    router.push(`/app/stock/${s.stocksymbol.toUpperCase()}`);
+   console.log(s.stocksymbol.toUpperCase());
   };
 
   return (
@@ -100,34 +87,44 @@ function Home() {
 
         <UserInfo
           user={{
-            name: String(user?.name),
-            walletAmount: Number(user?.balance),
-            portfolioAmount: Number(user?.totalInvested),
+            name: String(user?.name || "Guest"),
+            walletAmount: Number(user?.balance || 0),
+            portfolioAmount: Number(user?.totalInvested || 0),
           }}
           Auth={isAuthed}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {data?.map((stock, index) => (
-            <StockCard
-              key={index}
-              stock={stock}
-              onClick={() => onCardClick(stock)}
-            />
-          ))}
+          {data?.length > 0
+            ? data.map((stock, index) => (
+                <StockCard
+                  key={index}
+                  stock={stock}
+                  onClick={() => onCardClick(stock)}
+                />
+              ))
+            : // Shimmer skeleton loading
+              Array.from({ length: 8 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 animate-pulse"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="h-10 w-10 rounded-full bg-white/10" />
+                    <div className="h-4 w-16 rounded bg-white/10" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-5 w-24 rounded bg-white/10" />
+                    <div className="h-7 w-32 rounded bg-white/10" />
+                    <div className="flex gap-2">
+                      <div className="h-4 w-20 rounded bg-white/10" />
+                      <div className="h-4 w-12 rounded bg-white/10" />
+                    </div>
+                  </div>
+                </div>
+              ))}
         </div>
       </div>
-
-      {open && (
-        <BuySellDialog
-          open={open}
-          onOpenChange={setOpen}
-          stock={selected}
-          walletUSD={Number(user?.balance) || 0}
-          userId={user?.id || ""}
-          accountfetch={fetchUserDetail}
-        />
-      )}
     </div>
   );
 }
