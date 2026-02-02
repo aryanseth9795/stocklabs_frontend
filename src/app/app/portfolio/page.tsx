@@ -589,10 +589,8 @@ function AllocationCard({
               ))}
             </Pie>
             <ReTooltip
-              formatter={(
-                value: number | string | (number | string)[],
-                name: string,
-              ) => {
+              formatter={(value, name) => {
+                if (value === undefined || value === null) return ["-", name];
                 const v = Array.isArray(value)
                   ? Number(value[0])
                   : Number(value) || 0;
