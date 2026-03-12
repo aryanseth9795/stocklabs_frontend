@@ -27,13 +27,24 @@ interface Stock {
   stockChangePercentage: number;
   ts: string;
 }
-type TradeType = "buy" | "sell";
+
+type TradeAction = "buy" | "sell" | "short";
+
 interface TradeRequestBody {
   userId: string;
   stockName: string;
   quantity: number;
   rate: number;
-  type: TradeType;
+  type: "buy" | "sell";
+  orderMode?: "delivery" | "intraday" | "short_sell" | "short_cover";
+}
+
+interface ShortSellBody {
+  stockName: string;
+  stockSymbol: string;
+  quantity: number;
+  rate: number;
+  assetType: "crypto";
 }
 
 interface Props {
@@ -53,7 +64,8 @@ function BuySellDialog({
   userId,
   accountfetch,
 }: Props) {
-  const [isBuy, setIsBuy] = React.useState(true);
+  const [action, setAction] = React.useState<TradeAction>("buy");
+  const [isIntraday, setIsIntraday] = React.useState(false);
   const [mode, setMode] = React.useState<"amount" | "quantity">("amount");
   const [amountStr, setAmountStr] = React.useState("");
   const [qtyStr, setQtyStr] = React.useState("");
@@ -61,21 +73,22 @@ function BuySellDialog({
   const [submitting, setSubmitting] = React.useState(false);
 
   const { isAuthed } = useAuth();
+
   React.useEffect(() => {
-    if (!isAuthed) {
-      // toast.error("Please login to place an order.");
-      return;
-    }
+    if (!isAuthed) return;
     if (open && stock) {
-      setIsBuy(true);
+      setAction("buy");
+      setIsIntraday(false);
       setMode("amount");
       setAmountStr("");
       setQtyStr("");
       setLockedPrice(Number(stock.stockPrice));
     }
-  }, [open, stock]);
+  }, [open, stock, isAuthed]);
 
   const price = lockedPrice ?? stock?.stockPrice ?? 0;
+  const isBuy = action === "buy";
+  const isShort = action === "short";
 
   const amount = React.useMemo(() => {
     const a = parseFloat(amountStr);
@@ -101,7 +114,7 @@ function BuySellDialog({
         : 0;
   }, [amountStr, qtyStr, mode, price]);
 
-  const insufficientFunds = isBuy && amount > walletUSD;
+  const insufficientFunds = (isBuy || isShort) && amount > walletUSD;
   const disableCta =
     !stock ||
     !userId ||
@@ -111,36 +124,64 @@ function BuySellDialog({
     insufficientFunds ||
     submitting;
 
-  const accent = isBuy
+  const accentClass = isBuy
     ? "from-emerald-400/30 via-cyan-300/20 to-indigo-400/20"
-    : "from-rose-400/30 via-fuchsia-300/20 to-indigo-400/20";
-  const pill = isBuy
+    : isShort
+      ? "from-amber-400/30 via-orange-300/20 to-rose-400/20"
+      : "from-rose-400/30 via-fuchsia-300/20 to-indigo-400/20";
+
+  const pillClass = isBuy
     ? "text-emerald-300 border-emerald-400/30 bg-emerald-400/10"
-    : "text-rose-300 border-rose-400/30 bg-rose-400/10";
+    : isShort
+      ? "text-amber-300 border-amber-400/30 bg-amber-400/10"
+      : "text-rose-300 border-rose-400/30 bg-rose-400/10";
 
   const handleSubmit = async () => {
-    if (!userId) toast.error("Please login to place an order.");
-    console.log(disableCta);
+    if (!userId) {
+      toast.error("Please login to place an order.");
+      return;
+    }
     if (disableCta || !stock) return;
 
-    const payload: TradeRequestBody = {
-      userId,
-      // Using the company name; switch to `stock.stocksymbol` if your API expects the ticker
-      stockName: stock.stockName,
-      quantity: Number(qty.toFixed(6)),
-      rate: Number(price.toFixed(4)),
-      type: (isBuy ? "buy" : "sell") as TradeType,
-    };
-
     const tid = toast.loading(
-      isBuy ? "Placing buy order…" : "Placing sell order…",
+      isShort
+        ? "Opening short position…"
+        : isBuy
+          ? "Placing buy order…"
+          : "Placing sell order…",
     );
     setSubmitting(true);
+
     try {
-      await axios.post(`${serverApiUrl}/execute`, payload, {
-        withCredentials: true,
-      });
-      toast.success("Order placed successfully.", { id: tid });
+      if (isShort) {
+        const payload: ShortSellBody = {
+          stockName: stock.stockName,
+          stockSymbol: stock.stocksymbol,
+          quantity: Number(qty.toFixed(6)),
+          rate: Number(price.toFixed(4)),
+          assetType: "crypto",
+        };
+        await axios.post(`${serverApiUrl}/short/sell`, payload, {
+          withCredentials: true,
+        });
+        toast.success(
+          "Short position opened successfully. Auto-cut at midnight IST.",
+          { id: tid },
+        );
+      } else {
+        const payload: TradeRequestBody = {
+          userId,
+          stockName: stock.stockName,
+          quantity: Number(qty.toFixed(6)),
+          rate: Number(price.toFixed(4)),
+          type: action as "buy" | "sell",
+          orderMode: isIntraday ? "intraday" : "delivery",
+        };
+        await axios.post(`${serverApiUrl}/execute`, payload, {
+          withCredentials: true,
+        });
+        toast.success("Order placed successfully.", { id: tid });
+      }
       onOpenChange(false);
     } catch (err: unknown) {
       const msg =
@@ -160,7 +201,7 @@ function BuySellDialog({
       <DialogContent className="border border-white/10 bg-white/10 backdrop-blur-xl rounded-2xl p-0 text-white max-w-lg shadow-2xl">
         <div
           aria-hidden
-          className={`absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br ${accent} opacity-60`}
+          className={`absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br ${accentClass} opacity-60`}
         />
         <DialogHeader className="px-5 pt-5">
           <DialogTitle className="flex items-center justify-between">
@@ -168,9 +209,9 @@ function BuySellDialog({
               Place Order
             </span>
             <span
-              className={`text-[11px] px-2 py-0.5 rounded-full border ${pill}`}
+              className={`text-[11px] px-2 py-0.5 rounded-full border ${pillClass}`}
             >
-              {isBuy ? "BUY" : "SELL"}
+              {action.toUpperCase()}
             </span>
           </DialogTitle>
           <DialogDescription className="text-white/70 space-x-2">
@@ -192,33 +233,65 @@ function BuySellDialog({
                 </span>
               </span>
             )}
-            {isBuy && (
+            {(isBuy || isShort) && (
               <span className="block mt-1 text-xs text-white/50">
                 Wallet: ${walletUSD.toFixed(2)}
+              </span>
+            )}
+            {isShort && (
+              <span className="block mt-1 text-xs text-amber-300/80">
+                ⚠️ Short positions auto-close at midnight IST if not covered.
               </span>
             )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-5 py-4 space-y-5">
-          {/* Buy/Sell switch */}
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/10 p-3">
-            <div className="flex items-center gap-3">
-              <div
-                className={`h-2.5 w-2.5 rounded-full ${
-                  isBuy ? "bg-emerald-300" : "bg-rose-300"
-                }`}
-              />
-              <p className="text-sm text-white/85">
-                {isBuy ? "Buying" : "Selling"}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-white/60">Sell</span>
-              <Switch checked={isBuy} onCheckedChange={setIsBuy} />
-              <span className="text-xs text-white/60">Buy</span>
-            </div>
+        <div className="px-5 py-4 space-y-4">
+          {/* Action Tab switcher: Buy / Sell / Short */}
+          <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
+            {(["buy", "sell", "short"] as TradeAction[]).map((act) => {
+              const col =
+                act === "buy"
+                  ? "bg-emerald-500/80 text-white"
+                  : act === "sell"
+                    ? "bg-rose-500/80 text-white"
+                    : "bg-amber-500/80 text-white";
+              return (
+                <button
+                  key={act}
+                  onClick={() => setAction(act)}
+                  className={`py-2 rounded-lg text-sm font-medium transition capitalize ${
+                    action === act ? col : "hover:bg-white/10 text-white/60"
+                  }`}
+                >
+                  {act === "short"
+                    ? "Short Sell"
+                    : act.charAt(0).toUpperCase() + act.slice(1)}
+                </button>
+              );
+            })}
           </div>
+
+          {/* Intraday toggle — only for buy/sell, not short */}
+          {!isShort && (
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/10 p-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    isIntraday ? "bg-indigo-400" : "bg-emerald-300"
+                  }`}
+                />
+                <p className="text-sm text-white/85">
+                  {isIntraday ? "Intraday" : "Delivery"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-white/60">Delivery</span>
+                <Switch checked={isIntraday} onCheckedChange={setIsIntraday} />
+                <span className="text-xs text-white/60">Intraday</span>
+              </div>
+            </div>
+          )}
 
           {/* Locked Price */}
           <div className="space-y-2">
@@ -247,7 +320,7 @@ function BuySellDialog({
                 mode === "amount" ? "bg-white/15" : "hover:bg-white/5"
               }`}
             >
-              Enter Total Amount (USD)
+              Enter Total Amount ($)
             </button>
             <button
               onClick={() => {
@@ -264,67 +337,53 @@ function BuySellDialog({
 
           {/* Inputs */}
           {mode === "amount" ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="amount" className="text-white/85">
-                  Total Amount (USD)
-                </Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="0.00"
-                  value={amountStr}
-                  onChange={(e) => setAmountStr(e.target.value)}
-                  className="bg-white/10 border-white/15 text-white placeholder:text-white/30"
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <p className="text-sm text-white/70">
-                  Est. Quantity:{" "}
-                  <span className="font-medium text-white/90">
-                    {qty > 0 ? qty.toFixed(4) : "0.0000"}
-                  </span>
-                </p>
-                <p className="text-xs text-white/50">
-                  Computed as amount ÷ price.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-white/85">
+                Total Amount (USD)
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="0.00"
+                value={amountStr}
+                onChange={(e) => setAmountStr(e.target.value)}
+                className="bg-white/10 border-white/15 text-white placeholder:text-white/30"
+              />
+              <p className="text-sm text-white/70">
+                Est. Quantity:{" "}
+                <span className="font-medium text-white/90">
+                  {qty > 0 ? qty.toFixed(4) : "0.0000"}
+                </span>
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="qty" className="text-white/85">
-                  Quantity (shares)
-                </Label>
-                <Input
-                  id="qty"
-                  type="number"
-                  min={0}
-                  step="0.0001"
-                  placeholder="0.0000"
-                  value={qtyStr}
-                  onChange={(e) => setQtyStr(e.target.value)}
-                  className="bg-white/10 border-white/15 text-white placeholder:text-white/30"
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <p className="text-sm text-white/70">
-                  Est. Total:{" "}
-                  <span className="font-medium text-white/90">
-                    ${amount > 0 ? amount.toFixed(2) : "0.00"}
-                  </span>
-                </p>
-                <p className="text-xs text-white/50">
-                  Computed as quantity × price.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="qty" className="text-white/85">
+                Quantity (shares)
+              </Label>
+              <Input
+                id="qty"
+                type="number"
+                min={0}
+                step="0.0001"
+                placeholder="0.0000"
+                value={qtyStr}
+                onChange={(e) => setQtyStr(e.target.value)}
+                className="bg-white/10 border-white/15 text-white placeholder:text-white/30"
+              />
+              <p className="text-sm text-white/70">
+                Est. Total:{" "}
+                <span className="font-medium text-white/90">
+                  ${amount > 0 ? amount.toFixed(2) : "0.00"}
+                </span>
+              </p>
             </div>
           )}
 
-          {/* Buy wallet check */}
-          {isBuy && (
+          {/* Wallet check */}
+          {(isBuy || isShort) && (
             <div
               className={`rounded-xl border p-3 ${
                 insufficientFunds
@@ -337,18 +396,20 @@ function BuySellDialog({
                 <span className="text-white/90">${walletUSD.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between text-sm mt-1">
-                <span className="text-white/70">Order Total</span>
+                <span className="text-white/70">
+                  {isShort ? "Required Margin" : "Order Total"}
+                </span>
                 <span
-                  className={`${
+                  className={
                     insufficientFunds ? "text-rose-300" : "text-white/90"
-                  }`}
+                  }
                 >
                   ${amount > 0 ? amount.toFixed(2) : "0.00"}
                 </span>
               </div>
               {insufficientFunds && (
                 <p className="mt-2 text-xs text-rose-200">
-                  Insufficient funds. Reduce amount/quantity or add funds.
+                  Insufficient funds. Reduce amount or add funds.
                 </p>
               )}
             </div>
@@ -369,14 +430,18 @@ function BuySellDialog({
             className={`${
               isBuy
                 ? "bg-emerald-500/90 hover:bg-emerald-500"
-                : "bg-rose-500/90 hover:bg-rose-500"
+                : isShort
+                  ? "bg-amber-500/90 hover:bg-amber-500"
+                  : "bg-rose-500/90 hover:bg-rose-500"
             } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {submitting
               ? "Submitting…"
               : isBuy
-                ? "Place Buy Order"
-                : "Place Sell Order"}
+                ? `Buy${isIntraday ? " (Intraday)" : ""}`
+                : isShort
+                  ? "Open Short"
+                  : `Sell${isIntraday ? " (Intraday)" : ""}`}
           </Button>
         </DialogFooter>
       </DialogContent>

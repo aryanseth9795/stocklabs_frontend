@@ -2,8 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import axios from "axios";
 import { getSocket } from "@/lib/socket";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -11,7 +13,9 @@ import {
   PieChart as PieIcon,
   Wallet,
   Lock,
+  TrendingDown,
 } from "lucide-react";
+import { serverApiUrl } from "@/constant/config";
 import {
   PieChart,
   Pie,
@@ -67,6 +71,19 @@ type Tick = {
 type PortfolioBatch = {
   ts: string; // ISO server time
   ticks: Tick[];
+};
+
+// Short position
+type ShortPosition = {
+  id: string;
+  assetType: "crypto" | "commodity";
+  stockSymbol: string;
+  stockName: string;
+  entryPrice: number;
+  quantity: number;
+  totalValue: number;
+  status: "open" | "closed" | "auto_cut";
+  createdAt: string;
 };
 
 // Dialog Stock type (matches your BuySellDialog props)
@@ -131,11 +148,15 @@ function PortfolioPage() {
   const [ticks, setTicks] = useState<Tick[]>([]);
   const [lastBatchTs, setLastBatchTs] = useState<string>("");
 
-  // dialog state
+  // dialog + tabs
   const [tradeOpen, setTradeOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState<StockForDialog | null>(
     null,
   );
+  const [activeTab, setActiveTab] = useState<"holdings" | "shorts">("holdings");
+  const [shortPositions, setShortPositions] = useState<ShortPosition[]>([]);
+  const [shortLoading, setShortLoading] = useState(false);
+  const [coveringId, setCoveringId] = useState<string | null>(null);
 
   // auth state
   const { isAuthed } = useAuth();
@@ -224,7 +245,55 @@ function PortfolioPage() {
     } catch {}
   }, []);
 
-  // build StockForDialog from a symbol
+  // load open short positions
+  const loadShortPositions = useCallback(async () => {
+    setShortLoading(true);
+    try {
+      const res = await axios.get(`${serverApiUrl}/short/positions`, {
+        params: { status: "open" },
+        withCredentials: true,
+      });
+      setShortPositions(res.data.positions ?? []);
+    } catch {
+      setShortPositions([]);
+    } finally {
+      setShortLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "shorts") loadShortPositions();
+  }, [activeTab, loadShortPositions]);
+
+  // cover a short at current market price
+  const handleCoverShort = useCallback(
+    async (pos: ShortPosition) => {
+      const sym = pos.stockSymbol.toUpperCase();
+      const tick = bySymbol.get(sym);
+      const rate = tick?.stockPrice ?? pos.entryPrice;
+      setCoveringId(pos.id);
+      try {
+        await axios.post(
+          `${serverApiUrl}/short/cover`,
+          { shortPositionId: pos.id, rate },
+          { withCredentials: true },
+        );
+        toast("Short position covered successfully.");
+        await loadShortPositions();
+        accountfetch();
+      } catch (err) {
+        const msg =
+          axios.isAxiosError(err) &&
+          typeof err.response?.data?.message === "string"
+            ? err.response.data.message
+            : "Failed to cover position.";
+        toast(msg);
+      } finally {
+        setCoveringId(null);
+      }
+    },
+    [bySymbol, loadShortPositions, accountfetch],
+  );
   const buildDialogStock = useCallback(
     (symbolUpper: string): StockForDialog | null => {
       const t = bySymbol.get(symbolUpper);
@@ -396,15 +465,48 @@ function PortfolioPage() {
           />
         </div>
 
-        {/* Grid: Allocation + Table */}
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <AllocationCard data={allocData} className="lg:col-span-1" />
-          <HoldingsTable
-            rows={rows}
-            className="lg:col-span-2"
-            onRowClick={onRowClick}
-          />
+        {/* Tab switcher: Holdings | Short Positions */}
+        <div className="mt-6 flex gap-2">
+          {(["holdings", "shorts"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition border ${
+                activeTab === tab
+                  ? tab === "holdings"
+                    ? "bg-indigo-500/20 border-indigo-400/40 text-indigo-300"
+                    : "bg-amber-500/20 border-amber-400/40 text-amber-300"
+                  : "bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:border-white/20"
+              }`}
+            >
+              {tab === "holdings"
+                ? "Holdings"
+                : `Short Positions${shortPositions.length > 0 ? ` (${shortPositions.length})` : ""}`}
+            </button>
+          ))}
         </div>
+
+        {/* Grid: Allocation + Holdings or Short Positions */}
+        {activeTab === "holdings" ? (
+          <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <AllocationCard data={allocData} className="lg:col-span-1" />
+            <HoldingsTable
+              rows={rows}
+              className="lg:col-span-2"
+              onRowClick={onRowClick}
+            />
+          </div>
+        ) : (
+          <div className="mt-4">
+            <ShortPositionsTable
+              positions={shortPositions}
+              loading={shortLoading}
+              coveringId={coveringId}
+              bySymbol={bySymbol}
+              onCover={handleCoverShort}
+            />
+          </div>
+        )}
 
         {/* Live ticker */}
         <LiveTicker ticks={ticks} className="mt-6" />
@@ -797,4 +899,134 @@ function LiveTicker({
     </div>
   );
 }
+
+// ─── Short Positions Table ──────────────────────────────────────────────────
+type ShortPosition = {
+  id: string;
+  assetType: "crypto" | "commodity";
+  stockSymbol: string;
+  stockName: string;
+  entryPrice: number;
+  quantity: number;
+  totalValue: number;
+  status: string;
+  createdAt: string;
+};
+
+function ShortPositionsTable({
+  positions,
+  loading,
+  coveringId,
+  bySymbol,
+  onCover,
+}: {
+  positions: ShortPosition[];
+  loading: boolean;
+  coveringId: string | null;
+  bySymbol: Map<string, Tick>;
+  onCover: (pos: ShortPosition) => void;
+}) {
+  const fmtUSD = (n: number) =>
+    n.toLocaleString(undefined, {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 2,
+    });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`${cardBg} rounded-2xl border ${borderClr} p-4 shadow-xl backdrop-blur`}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <TrendingDown className="h-5 w-5 text-amber-400" />
+        <h3 className="text-sm font-medium text-zinc-300">
+          Open Short Positions
+        </h3>
+        <span className="text-xs text-zinc-500 ml-auto">
+          Auto-cut at midnight IST
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="py-10 text-center text-zinc-500 text-sm">
+          Loading short positions…
+        </div>
+      ) : positions.length === 0 ? (
+        <div className="py-10 text-center text-zinc-500 text-sm">
+          No open short positions.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead className="text-xs uppercase text-zinc-400">
+              <tr className="border-b border-white/5">
+                <th className="py-2 pr-3 text-left">Symbol</th>
+                <th className="py-2 px-3 text-right">Qty</th>
+                <th className="py-2 px-3 text-right">Entry Price</th>
+                <th className="py-2 px-3 text-right">Live Price</th>
+                <th className="py-2 px-3 text-right">Unr. P&L</th>
+                <th className="py-2 pl-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {positions.map((pos) => {
+                const sym = pos.stockSymbol.toUpperCase();
+                const tick = bySymbol.get(sym);
+                const livePrice = tick?.stockPrice ?? pos.entryPrice;
+                const pnl = (pos.entryPrice - livePrice) * pos.quantity;
+                const up = pnl >= 0;
+                const covering = coveringId === pos.id;
+                return (
+                  <tr key={pos.id} className="border-b border-white/5">
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-400/60" />
+                        <div>
+                          <div className="font-medium text-zinc-200">{sym}</div>
+                          <div className="text-[11px] text-zinc-500 capitalize">
+                            {pos.assetType}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums text-zinc-200">
+                      {pos.quantity.toFixed(4)}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums text-zinc-200">
+                      {fmtUSD(pos.entryPrice)}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums text-zinc-200">
+                      {fmtUSD(livePrice)}
+                    </td>
+                    <td
+                      className={`py-3 px-3 text-right tabular-nums ${up ? "text-emerald-400" : "text-rose-400"}`}
+                    >
+                      {fmtUSD(pnl)}
+                    </td>
+                    <td className="py-3 pl-3 text-right">
+                      <button
+                        disabled={covering}
+                        onClick={() => onCover(pos)}
+                        className={`rounded-lg px-3 py-1 text-xs font-semibold border transition ${
+                          covering
+                            ? "opacity-50 cursor-not-allowed border-white/10 text-zinc-400"
+                            : "border-amber-400/40 text-amber-300 bg-amber-400/10 hover:bg-amber-400/20"
+                        }`}
+                      >
+                        {covering ? "Covering…" : "Cover"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default PortfolioPage;

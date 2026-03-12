@@ -4,6 +4,7 @@ import {
   BriefcaseBusiness,
   User,
   ChartCandlestick,
+  Gem,
   LogIn,
 } from "lucide-react";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import { useAuth } from "@/lib/ContextApi";
 
 const nameMap: Record<string, string> = {
   home: "Home",
+  commodities: "Commodities",
   portfolio: "Portfolio",
   history: "History",
   account: "Account",
@@ -27,6 +29,7 @@ const Navbar = () => {
 
   const navItems = [
     { name: "Home", Icon: House },
+    { name: "Commodities", Icon: Gem },
     { name: "Portfolio", Icon: BriefcaseBusiness },
     { name: "History", Icon: ChartCandlestick },
     { name: "Account", Icon: User },
