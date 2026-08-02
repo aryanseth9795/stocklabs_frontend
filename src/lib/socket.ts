@@ -1,7 +1,12 @@
 import { io, Socket } from "socket.io-client";
 import { useMemo } from "react";
+import { serverUrl } from "@/constant/config";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL!;
+// Uses the shared config rather than a non-null-asserted env read. The `!`
+// silenced TypeScript without making the value present: with the variable
+// unset, io(undefined) quietly connected to the page's own origin, which is
+// not a socket server (review F-12).
+const SOCKET_URL = serverUrl;
 
 let socket: Socket | null = null;
 

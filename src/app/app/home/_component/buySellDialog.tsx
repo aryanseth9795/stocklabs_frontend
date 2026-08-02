@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { serverApiUrl } from "@/constant/config";
 import { useAuth } from "@/lib/ContextApi";
+import { fmtINR, errorMessage } from "@/lib/format";
 
 interface Stock {
   stockName: string;
@@ -30,11 +31,12 @@ interface Stock {
 
 type TradeAction = "buy" | "sell" | "short";
 
+// `userId` and `rate` are deliberately absent: the server takes the account from
+// the session and fills at its own live price, ignoring both (review F-06,
+// server S-02/S-03). Sending them would be inert but misleading.
 interface TradeRequestBody {
-  userId: string;
   stockName: string;
   quantity: number;
-  rate: number;
   type: "buy" | "sell";
   orderMode?: "delivery" | "intraday" | "short_sell" | "short_cover";
 }
@@ -43,7 +45,6 @@ interface ShortSellBody {
   stockName: string;
   stockSymbol: string;
   quantity: number;
-  rate: number;
   assetType: "crypto";
 }
 
@@ -51,7 +52,8 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   stock: Stock | null;
-  walletUSD: number;
+  /** Wallet balance in ₹ — the currency of the server's ledger (F-01). */
+  walletINR: number;
   userId: string;
   accountfetch: () => void;
 }
@@ -60,7 +62,7 @@ function BuySellDialog({
   open,
   onOpenChange,
   stock,
-  walletUSD,
+  walletINR,
   userId,
   accountfetch,
 }: Props) {
@@ -82,11 +84,13 @@ function BuySellDialog({
       setMode("amount");
       setAmountStr("");
       setQtyStr("");
-      setLockedPrice(Number(stock.stockPrice));
+      // INR, matching the server's ledger and the mobile app. Reading
+      // stockPrice (USD) here is what made the whole page mis-price (F-01).
+      setLockedPrice(Number(stock.stockPriceINR));
     }
   }, [open, stock, isAuthed]);
 
-  const price = lockedPrice ?? stock?.stockPrice ?? 0;
+  const price = lockedPrice ?? stock?.stockPriceINR ?? 0;
   const isBuy = action === "buy";
   const isShort = action === "short";
 
@@ -114,7 +118,7 @@ function BuySellDialog({
         : 0;
   }, [amountStr, qtyStr, mode, price]);
 
-  const insufficientFunds = (isBuy || isShort) && amount > walletUSD;
+  const insufficientFunds = (isBuy || isShort) && amount > walletINR;
   const disableCta =
     !stock ||
     !userId ||
@@ -153,43 +157,48 @@ function BuySellDialog({
     setSubmitting(true);
 
     try {
+      // The server returns the price it actually filled at, which may differ
+      // from the indicative price shown here — report the real one (F-06).
+      let executedPrice: number | undefined;
+
       if (isShort) {
         const payload: ShortSellBody = {
           stockName: stock.stockName,
           stockSymbol: stock.stocksymbol,
           quantity: Number(qty.toFixed(6)),
-          rate: Number(price.toFixed(4)),
           assetType: "crypto",
         };
-        await axios.post(`${serverApiUrl}/short/sell`, payload, {
+        const res = await axios.post(`${serverApiUrl}/short/sell`, payload, {
           withCredentials: true,
         });
+        executedPrice = res.data?.executedPrice;
         toast.success(
-          "Short position opened successfully. Auto-cut at midnight IST.",
+          executedPrice
+            ? `Short opened at ${fmtINR(executedPrice)}. Auto-cut at midnight IST.`
+            : "Short position opened successfully. Auto-cut at midnight IST.",
           { id: tid },
         );
       } else {
         const payload: TradeRequestBody = {
-          userId,
           stockName: stock.stockName,
           quantity: Number(qty.toFixed(6)),
-          rate: Number(price.toFixed(4)),
           type: action as "buy" | "sell",
           orderMode: isIntraday ? "intraday" : "delivery",
         };
-        await axios.post(`${serverApiUrl}/execute`, payload, {
+        const res = await axios.post(`${serverApiUrl}/execute`, payload, {
           withCredentials: true,
         });
-        toast.success("Order placed successfully.", { id: tid });
+        executedPrice = res.data?.executedPrice;
+        toast.success(
+          executedPrice
+            ? `${isBuy ? "Bought" : "Sold"} at ${fmtINR(executedPrice)}.`
+            : "Order placed successfully.",
+          { id: tid },
+        );
       }
       onOpenChange(false);
     } catch (err: unknown) {
-      const msg =
-        (axios.isAxiosError(err) &&
-        typeof err.response?.data?.message === "string"
-          ? err.response.data.message
-          : err instanceof Error && err.message) || "Failed to place order.";
-      toast.error(msg, { id: tid });
+      toast.error(errorMessage(err, "Failed to place order."), { id: tid });
     } finally {
       setSubmitting(false);
       accountfetch();
@@ -227,15 +236,15 @@ function BuySellDialog({
             </span>
             {stock && (
               <span className="inline-flex items-center gap-2 text-white/60">
-                • Price locked at open:
+                • Indicative price:
                 <span className="text-white/90 font-medium">
-                  ${price.toFixed(2)}
+                  {fmtINR(price)}
                 </span>
               </span>
             )}
             {(isBuy || isShort) && (
               <span className="block mt-1 text-xs text-white/50">
-                Wallet: ${walletUSD.toFixed(2)}
+                Wallet: {fmtINR(walletINR)}
               </span>
             )}
             {isShort && (
@@ -293,10 +302,10 @@ function BuySellDialog({
             </div>
           )}
 
-          {/* Locked Price */}
+          {/* Indicative price */}
           <div className="space-y-2">
             <Label htmlFor="price" className="text-white/85">
-              Price (USD)
+              Price (₹)
             </Label>
             <Input
               id="price"
@@ -305,7 +314,8 @@ function BuySellDialog({
               className="bg-white/10 border-white/15 text-white placeholder:text-white/30 cursor-not-allowed opacity-90"
             />
             <p className="text-[11px] text-white/50">
-              Captured when you opened the dialog.
+              Indicative only — your order fills at the market price when it
+              reaches the server.
             </p>
           </div>
 
@@ -339,7 +349,7 @@ function BuySellDialog({
           {mode === "amount" ? (
             <div className="space-y-2">
               <Label htmlFor="amount" className="text-white/85">
-                Total Amount (USD)
+                Total Amount (₹)
               </Label>
               <Input
                 id="amount"
@@ -376,7 +386,7 @@ function BuySellDialog({
               <p className="text-sm text-white/70">
                 Est. Total:{" "}
                 <span className="font-medium text-white/90">
-                  ${amount > 0 ? amount.toFixed(2) : "0.00"}
+                  {fmtINR(amount > 0 ? amount : 0)}
                 </span>
               </p>
             </div>
@@ -393,7 +403,7 @@ function BuySellDialog({
             >
               <div className="flex items-center justify-between text-sm">
                 <span className="text-white/70">Wallet</span>
-                <span className="text-white/90">${walletUSD.toFixed(2)}</span>
+                <span className="text-white/90">{fmtINR(walletINR)}</span>
               </div>
               <div className="flex items-center justify-between text-sm mt-1">
                 <span className="text-white/70">
@@ -404,7 +414,7 @@ function BuySellDialog({
                     insufficientFunds ? "text-rose-300" : "text-white/90"
                   }
                 >
-                  ${amount > 0 ? amount.toFixed(2) : "0.00"}
+                  {fmtINR(amount > 0 ? amount : 0)}
                 </span>
               </div>
               {insufficientFunds && (

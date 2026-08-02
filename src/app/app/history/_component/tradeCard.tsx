@@ -1,5 +1,6 @@
 // app/(wherever)/_component/TradeCard.tsx
 import { BadgeCheck, TrendingUp, TrendingDown, Clock, Hash, Info } from "lucide-react";
+import { fmtINR } from "@/lib/format";
 
 type Order = {
   id: string;
@@ -43,10 +44,12 @@ export default function TradeCard({ trade }: { trade: Order }) {
         </div>
       </div>
 
+      {/* Order.stockPrice / stockTotal are stored in ₹ by the server; they were
+          rendered as bare numbers with no unit. Quantity stays unitless. */}
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <InfoRow label="Price" value={num(trade.stockPrice)} />
+        <InfoRow label="Price" value={fmtINR(trade.stockPrice)} />
         <InfoRow label="Quantity" value={num(trade.stockQuantity)} />
-        <InfoRow label="Total" value={num(trade.stockTotal)} />
+        <InfoRow label="Total" value={fmtINR(trade.stockTotal)} />
         <StatusPill status={trade.status} />
       </div>
 

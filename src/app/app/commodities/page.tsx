@@ -18,17 +18,11 @@ import {
 import { toast } from "sonner";
 import { serverApiUrl, serverUrl } from "@/constant/config";
 import { useAuth } from "@/lib/ContextApi";
+import { errorMessage } from "@/lib/format";
 import Link from "next/link";
 import { Lock } from "lucide-react";
-import { Button as UIButton } from "@/components/ui/button";
-import {
-  Dialog as UIDialog,
-  DialogContent as UIDialogContent,
-  DialogHeader as UIDialogHeader,
-  DialogTitle as UIDialogTitle,
-  DialogDescription as UIDialogDescription,
-  DialogFooter as UIDialogFooter,
-} from "@/components/ui/dialog";
+// The `UI*`-aliased duplicates of Button/Dialog that used to be imported here
+// pointed at the same modules as the plain names above (review F-14).
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type CommodityLive = {
@@ -109,43 +103,46 @@ function CommodityTradeDialog({
     );
     setSubmitting(true);
     try {
+      // No `rate` on either call: the server fills from its own live price and
+      // ignores a client-supplied one (review F-06, server S-02).
       if (action === "short") {
-        await axios.post(
+        const res = await axios.post(
           `${serverApiUrl}/short/sell`,
           {
             stockName: commodity.name,
             stockSymbol: commodity.symbol,
             quantity: parseFloat(qty.toFixed(6)),
-            rate: price,
             assetType: "commodity",
           },
           { withCredentials: true },
         );
-        toast.success("Short position opened. Auto-cut at midnight IST.", {
-          id: tid,
-        });
+        toast.success(
+          res.data?.executedPrice
+            ? `Short opened at ${fmtINR(res.data.executedPrice)}. Auto-cut at midnight IST.`
+            : "Short position opened. Auto-cut at midnight IST.",
+          { id: tid },
+        );
       } else {
-        await axios.post(
+        const res = await axios.post(
           `${serverApiUrl}/commodity/execute`,
           {
             symbol: commodity.symbol,
             quantity: parseFloat(qty.toFixed(6)),
-            rate: price,
             type: action,
           },
           { withCredentials: true },
         );
-        toast.success(`Commodity ${action} order placed.`, { id: tid });
+        toast.success(
+          res.data?.executedPrice
+            ? `Commodity ${action} filled at ${fmtINR(res.data.executedPrice)}.`
+            : `Commodity ${action} order placed.`,
+          { id: tid },
+        );
       }
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      const msg =
-        axios.isAxiosError(err) &&
-        typeof err.response?.data?.message === "string"
-          ? err.response.data.message
-          : "Order failed.";
-      toast.error(msg, { id: tid });
+      toast.error(errorMessage(err, "Order failed."), { id: tid });
     } finally {
       setSubmitting(false);
     }
@@ -278,12 +275,27 @@ export default function CommoditiesPage() {
   const [selectedComm, setSelectedComm] = useState<CommodityLive | null>(null);
 
   const ctrlRef = useRef<AbortController | null>(null);
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // SSE connection
   const connectSSE = useCallback(() => {
     ctrlRef.current?.abort();
+    if (retryRef.current) clearTimeout(retryRef.current);
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
+
+    /**
+     * The upstream is a sleepy free-tier service, so a clean end of stream is
+     * routine rather than exceptional. Without this the page sat on
+     * "Connecting…" until a manual refresh (review F-10). Guarded on
+     * `ctrl.signal.aborted` so an unmounted component neither retries nor
+     * calls setState.
+     */
+    const scheduleReconnect = () => {
+      if (ctrl.signal.aborted) return;
+      setConnected(false);
+      retryRef.current = setTimeout(() => connectSSE(), 5000);
+    };
 
     let buffer = "";
     fetch(`${serverUrl}/api/v1/commodity/stream`, {
@@ -291,6 +303,7 @@ export default function CommoditiesPage() {
       headers: { Accept: "text/event-stream" },
     })
       .then((res) => {
+        if (ctrl.signal.aborted) return;
         setConnected(true);
         const reader = res.body?.getReader();
         if (!reader) return;
@@ -299,8 +312,9 @@ export default function CommoditiesPage() {
           reader
             .read()
             .then(({ done, value }) => {
+              if (ctrl.signal.aborted) return;
               if (done) {
-                setConnected(false);
+                scheduleReconnect();
                 return;
               }
               buffer += dec.decode(value, { stream: true });
@@ -336,16 +350,19 @@ export default function CommoditiesPage() {
               }
               read();
             })
-            .catch(() => setConnected(false));
+            .catch(() => scheduleReconnect());
         };
         read();
       })
-      .catch(() => setConnected(false));
+      .catch(() => scheduleReconnect());
   }, []);
 
   useEffect(() => {
     connectSSE();
-    return () => ctrlRef.current?.abort();
+    return () => {
+      ctrlRef.current?.abort();
+      if (retryRef.current) clearTimeout(retryRef.current);
+    };
   }, [connectSSE]);
 
   const loadHoldings = useCallback(async () => {
@@ -530,33 +547,33 @@ export default function CommoditiesPage() {
       </div>
 
       {/* Auth guard modal */}
-      <UIDialog open={!isAuthed}>
-        <UIDialogContent className="bg-neutral-950 border-white/10 text-white sm:max-w-md">
-          <UIDialogHeader>
-            <UIDialogTitle className="flex items-center gap-2">
+      <Dialog open={!isAuthed}>
+        <DialogContent className="bg-neutral-950 border-white/10 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <Lock size={18} /> Login Required
-            </UIDialogTitle>
-            <UIDialogDescription className="text-zinc-400">
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
               Please login to access commodity trading.
-            </UIDialogDescription>
-          </UIDialogHeader>
-          <UIDialogFooter className="flex gap-2">
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
             <Link href="/login">
-              <UIButton className="bg-indigo-500 hover:bg-indigo-600 text-white">
+              <Button className="bg-indigo-500 hover:bg-indigo-600 text-white">
                 Go to Login
-              </UIButton>
+              </Button>
             </Link>
             <Link href="/app/home">
-              <UIButton
+              <Button
                 variant="outline"
                 className="border-white/20 text-white bg-black"
               >
                 Back to Home
-              </UIButton>
+              </Button>
             </Link>
-          </UIDialogFooter>
-        </UIDialogContent>
-      </UIDialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Trade Dialog */}
       <CommodityTradeDialog

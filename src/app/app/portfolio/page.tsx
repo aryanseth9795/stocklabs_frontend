@@ -34,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import BuySellDialog from "../home/_component/buySellDialog";
 import { useAuth } from "@/lib/ContextApi";
+import { fmtINR, fmtPct, errorMessage } from "@/lib/format";
 
 // ---------- Types from server ----------
 type UserData = {
@@ -42,7 +43,7 @@ type UserData = {
   updatedAt: string | Date;
   name: string;
   email: string;
-  balance: number; // likely INR
+  balance: number; // ₹ — confirmed against the server's ledger, not "likely"
 };
 
 type Position = {
@@ -60,10 +61,10 @@ type Position = {
 type Tick = {
   stocksymbol: string; // "ETHUSDT"
   stockName: string; // "ethusdt"
-  stockPrice: number; // live USD/USDT
-  stockPriceINR?: number;
-  stockChange?: number;
-  stockChangeINR?: number;
+  stockPrice: number; // USD — informational only, never use for money
+  stockPriceINR?: number; // ₹ — authoritative
+  stockChange?: number; // USD — informational only
+  stockChangeINR?: number; // ₹ — authoritative
   stockChangePercentage?: number;
   ts?: string; // "7:07:54 pm"
 };
@@ -99,6 +100,7 @@ type StockForDialog = {
 };
 
 // ---------- View model ----------
+/** All money fields are ₹ (review F-01). */
 type HoldingView = {
   key: string;
   symbol: string;
@@ -107,9 +109,7 @@ type HoldingView = {
   avgBuy: number;
   invested: number;
   current: number;
-  currentINR?: number;
   value: number;
-  valueINR?: number;
   dayPct?: number;
   dayAbs?: number;
   ts?: string;
@@ -119,20 +119,9 @@ type HoldingView = {
 };
 
 // ---------- Formatters ----------
-const fmtUSD = (n: number) =>
-  n.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  });
-const fmtINR = (n: number) =>
-  n.toLocaleString("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  });
-const fmtPct = (n: number) =>
-  `${n >= 0 ? "+" : ""}${(Number.isFinite(n) ? n : 0).toFixed(2)}%`;
+// Everything on this page is ₹ (see the fmtINR import above). It previously
+// rendered USD prices against an INR cost basis, so `pnl = value − invested`
+// subtracted rupees from dollars and every P&L figure was meaningless (F-01).
 
 // ---------- Theme helpers ----------
 const gain = "text-emerald-400";
@@ -205,6 +194,9 @@ function PortfolioPage() {
     return () => {
       socket.off("portfolio:batch", handlePortfolioBatch);
       socket.off("Portfolio_info", handlePortfolioInfo);
+      // Stop the server's 2s per-socket poller; the socket outlives this page
+      // (review F-09).
+      socket.emit("portfolio:stop");
     };
   }, [handlePortfolioBatch, handlePortfolioInfo]);
 
@@ -218,25 +210,13 @@ function PortfolioPage() {
     return m;
   }, [ticks]);
 
-  // derive fx (INR per USD) from live ticks if available; fallback 86
-  const fx = useMemo(() => {
-    const ratios: number[] = [];
-    for (const t of ticks) {
-      if (t.stockPrice && t.stockPriceINR) {
-        const r = t.stockPriceINR / t.stockPrice;
-        if (isFinite(r) && r > 0) ratios.push(r);
-      }
-    }
-    if (!ratios.length) return 86;
-    ratios.sort((a, b) => a - b);
-    return ratios[Math.floor(ratios.length / 2)];
-  }, [ticks]);
+  // The `fx` helper that used to live here reverse-derived an INR/USD rate by
+  // taking the median of stockPriceINR/stockPrice across ticks. It existed only
+  // to bridge the USD display against the INR ledger; now that the page is INR
+  // throughout, there is nothing to convert (review F-01).
 
-  // wallet USD for dialog (convert INR→USD)
-  const walletUSD = useMemo(() => {
-    if (!user) return 0;
-    return user.balance;
-  }, [user]);
+  // Wallet balance in ₹, exactly as the server stores it.
+  const walletINR = useMemo(() => user?.balance ?? 0, [user]);
 
   // account refresh for dialog
   const accountfetch = useCallback(() => {
@@ -268,31 +248,26 @@ function PortfolioPage() {
   // cover a short at current market price
   const handleCoverShort = useCallback(
     async (pos: ShortPosition) => {
-      const sym = pos.stockSymbol.toUpperCase();
-      const tick = bySymbol.get(sym);
-      const rate = tick?.stockPrice ?? pos.entryPrice;
       setCoveringId(pos.id);
       try {
-        await axios.post(
+        // No `rate`: the server sets the exit price from its own live feed. It
+        // used to accept a client-supplied one, which directly controlled the
+        // realised P&L (review F-06, server S-02).
+        const res = await axios.post(
           `${serverApiUrl}/short/cover`,
-          { shortPositionId: pos.id, rate },
+          { shortPositionId: pos.id },
           { withCredentials: true },
         );
-        toast("Short position covered successfully.");
+        toast(res.data?.message || "Short position covered successfully.");
         await loadShortPositions();
         accountfetch();
       } catch (err) {
-        const msg =
-          axios.isAxiosError(err) &&
-          typeof err.response?.data?.message === "string"
-            ? err.response.data.message
-            : "Failed to cover position.";
-        toast(msg);
+        toast(errorMessage(err, "Failed to cover position."));
       } finally {
         setCoveringId(null);
       }
     },
-    [bySymbol, loadShortPositions, accountfetch],
+    [loadShortPositions, accountfetch],
   );
   const buildDialogStock = useCallback(
     (symbolUpper: string): StockForDialog | null => {
@@ -303,8 +278,10 @@ function PortfolioPage() {
       );
       if (!t && !pos) return null;
 
-      const price = t?.stockPrice ?? pos?.stockPrice ?? 0;
-      const priceINR = t?.stockPriceINR ?? (price ? price * fx : 0);
+      // pos.stockPrice is the stored (INR) buy price, so it is a valid stand-in
+      // for stockPriceINR when no live tick has arrived yet.
+      const priceINR = t?.stockPriceINR ?? pos?.stockPrice ?? 0;
+      const price = t?.stockPrice ?? 0;
       return {
         stockName: (
           t?.stockName ||
@@ -324,16 +301,18 @@ function PortfolioPage() {
         ts: t?.ts || new Date().toLocaleTimeString(),
       };
     },
-    [bySymbol, positions, fx],
+    [bySymbol, positions],
   );
 
   // ---------- Derived UI state ----------
+  // All arithmetic below is in ₹. `info.stockTotal` and `info.stockPrice` come
+  // from the server's ledger (INR), so the live price must be the INR one —
+  // mixing in `tick.stockPrice` (USD) is what made every P&L wrong (F-01).
   const { rows, totals, allocData } = useMemo(() => {
     const upper = (s: string) => (s || "").toUpperCase();
     const out: HoldingView[] = [];
     let investedSum = 0;
     let currentSum = 0;
-    let currentSumINR = 0;
 
     for (const info of positions) {
       const symbolU = upper(info.stockSymbol || info.stockName);
@@ -342,17 +321,14 @@ function PortfolioPage() {
       const avgBuy = info.stockQuantity
         ? info.stockTotal / info.stockQuantity
         : 0;
-      const livePrice = tick?.stockPrice ?? 0;
-      const livePriceINR = tick?.stockPriceINR;
+      // Fall back to the average buy price when no tick has arrived, so an
+      // un-ticked holding shows zero P&L rather than a 100% loss.
+      const livePriceINR = tick?.stockPriceINR ?? avgBuy;
 
-      const value = livePrice * info.stockQuantity;
-      const valueINR = livePriceINR
-        ? livePriceINR * info.stockQuantity
-        : undefined;
+      const value = livePriceINR * info.stockQuantity;
 
       investedSum += info.stockTotal;
       currentSum += value;
-      if (valueINR) currentSumINR += valueINR;
 
       out.push({
         key: info.id,
@@ -361,12 +337,10 @@ function PortfolioPage() {
         qty: info.stockQuantity,
         avgBuy,
         invested: info.stockTotal,
-        current: livePrice,
-        currentINR: livePriceINR,
+        current: livePriceINR,
         value,
-        valueINR,
         dayPct: tick?.stockChangePercentage,
-        dayAbs: tick?.stockChange,
+        dayAbs: tick?.stockChangeINR,
         ts: tick?.ts,
         pnl: value - info.stockTotal,
         pnlPct: info.stockTotal
@@ -389,8 +363,7 @@ function PortfolioPage() {
       rows: out,
       totals: {
         invested: investedSum,
-        currentUSD: currentSum,
-        currentINR: currentSumINR || undefined,
+        current: currentSum,
         pnl: currentSum - investedSum,
         pnlPct: investedSum
           ? ((currentSum - investedSum) / investedSum) * 100
@@ -446,21 +419,20 @@ function PortfolioPage() {
 
         {/* Wallet + KPIs */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <WalletCard balanceINR={user?.balance ?? 0} />
+          <WalletCard balanceINR={walletINR} />
           <KpiCard
             title="Invested"
-            valueUSD={totals.invested}
+            value={totals.invested}
             subtitle="Total principal"
           />
           <KpiCard
             title="Current Value"
-            valueUSD={totals.currentUSD}
-            valueINR={totals.currentINR}
+            value={totals.current}
             subtitle="Mark-to-market"
           />
           <KpiPnl
             title="Unrealized P&L"
-            pnlUSD={totals.pnl}
+            pnl={totals.pnl}
             pnlPct={totals.pnlPct}
           />
         </div>
@@ -517,7 +489,7 @@ function PortfolioPage() {
         open={tradeOpen}
         onOpenChange={setTradeOpen}
         stock={selectedStock}
-        walletUSD={walletUSD}
+        walletINR={walletINR}
         userId={user?.id || ""}
         accountfetch={accountfetch}
       />
@@ -567,9 +539,8 @@ function WalletCard({ balanceINR }: { balanceINR: number }) {
         <div className="text-sm text-zinc-400">Wallet Balance</div>
         <Wallet className="h-4 w-4 text-zinc-300" />
       </div>
-      {/* <div className="mt-2 text-2xl font-semibold">{fmtINR(balanceINR || 0)}</div> */}
       <div className="mt-2 text-2xl font-semibold">
-        ${balanceINR.toFixed(2)}
+        {fmtINR(balanceINR || 0)}
       </div>
       <div className="mt-3 text-xs text-zinc-500">Available funds</div>
     </motion.div>
@@ -578,13 +549,12 @@ function WalletCard({ balanceINR }: { balanceINR: number }) {
 
 function KpiCard({
   title,
-  valueUSD,
-  valueINR,
+  value,
   subtitle,
 }: {
   title: string;
-  valueUSD: number;
-  valueINR?: number;
+  /** ₹ */
+  value: number;
   subtitle?: string;
 }) {
   return (
@@ -594,10 +564,7 @@ function KpiCard({
       className={`${cardBg} ${ringHover} rounded-2xl border ${borderClr} p-4 shadow-xl backdrop-blur`}
     >
       <div className="text-sm text-zinc-400">{title}</div>
-      <div className="mt-2 text-2xl font-semibold">{fmtUSD(valueUSD)}</div>
-      {valueINR !== undefined && (
-        <div className="mt-1 text-xs text-zinc-400">{fmtINR(valueINR)}</div>
-      )}
+      <div className="mt-2 text-2xl font-semibold">{fmtINR(value)}</div>
       {subtitle && <div className="mt-3 text-xs text-zinc-500">{subtitle}</div>}
     </motion.div>
   );
@@ -605,14 +572,15 @@ function KpiCard({
 
 function KpiPnl({
   title,
-  pnlUSD,
+  pnl,
   pnlPct,
 }: {
   title: string;
-  pnlUSD: number;
+  /** ₹ */
+  pnl: number;
   pnlPct: number;
 }) {
-  const up = pnlUSD >= 0;
+  const up = pnl >= 0;
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -628,7 +596,7 @@ function KpiPnl({
         )}
       </div>
       <div className={`mt-2 text-2xl font-semibold ${up ? gain : loss}`}>
-        {fmtUSD(pnlUSD)}
+        {fmtINR(pnl)}
       </div>
       <div className={`mt-1 text-xs ${up ? gain : loss}`}>{fmtPct(pnlPct)}</div>
       <div className="mt-3 text-xs text-zinc-500">
@@ -692,7 +660,7 @@ function AllocationCard({
                   ? Number(value[0])
                   : Number(value) || 0;
                 const pct = total ? (v / total) * 100 : 0;
-                return [`${fmtUSD(v)} (${pct.toFixed(1)}%)`, name];
+                return [`${fmtINR(v)} (${pct.toFixed(1)}%)`, name];
               }}
               contentStyle={{
                 background: "#0a0a0a",
@@ -783,23 +751,13 @@ function HoldingsTable({
                       {r.qty}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums">
-                      {fmtUSD(r.avgBuy)}
+                      {fmtINR(r.avgBuy)}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums">
-                      <div className="text-zinc-200">{fmtUSD(r.current)}</div>
-                      {r.currentINR !== undefined && (
-                        <div className="text-xs text-zinc-500">
-                          {fmtINR(r.currentINR)}
-                        </div>
-                      )}
+                      <div className="text-zinc-200">{fmtINR(r.current)}</div>
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums">
-                      <div className="text-zinc-200">{fmtUSD(r.value)}</div>
-                      {r.valueINR !== undefined && (
-                        <div className="text-xs text-zinc-500">
-                          {fmtINR(r.valueINR)}
-                        </div>
-                      )}
+                      <div className="text-zinc-200">{fmtINR(r.value)}</div>
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums">
                       <span className={`${dayUp ? gain : loss}`}>
@@ -807,13 +765,13 @@ function HoldingsTable({
                       </span>
                       {r.dayAbs !== undefined && (
                         <div className={`text-xs ${dayUp ? gain : loss}`}>
-                          {fmtUSD(r.dayAbs)}
+                          {fmtINR(r.dayAbs)}
                         </div>
                       )}
                     </td>
                     <td className="py-3 pl-3 text-right tabular-nums">
                       <div className={`${up ? gain : loss}`}>
-                        {fmtUSD(r.pnl)}
+                        {fmtINR(r.pnl)}
                       </div>
                       <div className={`text-xs ${up ? gain : loss}`}>
                         {fmtPct(r.pnlPct)}
@@ -876,7 +834,7 @@ function LiveTicker({
               >
                 <span className="text-xs text-zinc-400">{symbol}</span>
                 <span className="text-sm text-zinc-200 tabular-nums">
-                  {fmtUSD(t?.stockPrice ?? 0)}
+                  {fmtINR(t?.stockPriceINR ?? 0)}
                 </span>
                 <span className={`text-xs ${up ? gain : loss}`}>
                   {fmtPct(t?.stockChangePercentage ?? 0)}
@@ -901,17 +859,9 @@ function LiveTicker({
 }
 
 // ─── Short Positions Table ──────────────────────────────────────────────────
-type ShortPosition = {
-  id: string;
-  assetType: "crypto" | "commodity";
-  stockSymbol: string;
-  stockName: string;
-  entryPrice: number;
-  quantity: number;
-  totalValue: number;
-  status: string;
-  createdAt: string;
-};
+// `ShortPosition` is declared once, near the other server types at the top of
+// the file. A second, near-identical declaration lived here and made the whole
+// project fail to typecheck (review F-15).
 
 function ShortPositionsTable({
   positions,
@@ -926,13 +876,6 @@ function ShortPositionsTable({
   bySymbol: Map<string, Tick>;
   onCover: (pos: ShortPosition) => void;
 }) {
-  const fmtUSD = (n: number) =>
-    n.toLocaleString(undefined, {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 2,
-    });
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -974,7 +917,10 @@ function ShortPositionsTable({
               {positions.map((pos) => {
                 const sym = pos.stockSymbol.toUpperCase();
                 const tick = bySymbol.get(sym);
-                const livePrice = tick?.stockPrice ?? pos.entryPrice;
+                // entryPrice is stored in ₹, so the live price must be the INR
+                // one — pairing it with the USD tick produced a fake ~85x
+                // profit on every open short (review F-01).
+                const livePrice = tick?.stockPriceINR ?? pos.entryPrice;
                 const pnl = (pos.entryPrice - livePrice) * pos.quantity;
                 const up = pnl >= 0;
                 const covering = coveringId === pos.id;
@@ -995,15 +941,15 @@ function ShortPositionsTable({
                       {pos.quantity.toFixed(4)}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums text-zinc-200">
-                      {fmtUSD(pos.entryPrice)}
+                      {fmtINR(pos.entryPrice)}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums text-zinc-200">
-                      {fmtUSD(livePrice)}
+                      {fmtINR(livePrice)}
                     </td>
                     <td
                       className={`py-3 px-3 text-right tabular-nums ${up ? "text-emerald-400" : "text-rose-400"}`}
                     >
-                      {fmtUSD(pnl)}
+                      {fmtINR(pnl)}
                     </td>
                     <td className="py-3 pl-3 text-right">
                       <button

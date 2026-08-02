@@ -19,6 +19,7 @@ import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/ContextApi";
+import { errorMessage } from "@/lib/format";
 
 const SignUp = () => {
   const router = useRouter();
@@ -36,19 +37,25 @@ const SignUp = () => {
     }
     const idtoast = toast.loading("Signing Up");
     try {
-      const res = await axios.post(
+      // axios rejects on any non-2xx, so reaching this line already means
+      // success. The old `if (res.status === 200)` silently did nothing once
+      // the server started returning 201 Created — the account was created but
+      // the UI never redirected (review F-03).
+      await axios.post(
         `${serverApiUrl}/signup`,
         { name, email, password },
         { withCredentials: true },
       );
-      if (res.status === 200) {
-        toast.success("Sign up successful", { id: idtoast });
-        setIsAuthed(true);
-        router.push("/app/home");
-      }
+      toast.success("Sign up successful", { id: idtoast });
+      setIsAuthed(true);
+      router.push("/app/home");
     } catch (error) {
-      toast.error("Something Went wrong", { id: idtoast });
-      console.log(error);
+      // Surface what the server actually said ("User Already Exists",
+      // "Password must be at least 6 characters") instead of a generic
+      // string the user cannot act on (review F-05).
+      toast.error(errorMessage(error, "Could not create your account."), {
+        id: idtoast,
+      });
     }
   };
 

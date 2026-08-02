@@ -1,5 +1,6 @@
 // app/(wherever)/_component/TxCard.tsx
 import { ArrowDownCircle, ArrowUpCircle, Clock, Hash } from "lucide-react";
+import { fmtINR } from "@/lib/format";
 
 type Transaction = {
   id: string;
@@ -44,9 +45,10 @@ export default function TxCard({ tx }: { tx: Transaction }) {
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-sm">
-        <InfoRow label="Opening" value={num(tx.openingBalance)} />
-        <InfoRow label="Used" value={num(tx.usedBalance)} />
-        <InfoRow label="Closing" value={num(tx.closingBalance)} />
+        {/* Balances are ₹ on the server; they rendered as bare numbers. */}
+        <InfoRow label="Opening" value={fmtINR(tx.openingBalance)} />
+        <InfoRow label="Used" value={fmtINR(tx.usedBalance)} />
+        <InfoRow label="Closing" value={fmtINR(tx.closingBalance)} />
       </div>
 
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
@@ -82,10 +84,10 @@ export default function TxCard({ tx }: { tx: Transaction }) {
                 {tx.order.type.toLowerCase() === "buy" ? "Buy" : "Sell"}
               </div>
               <div className="font-medium">
-                {num(tx.order.stockQuantity)} × {num(tx.order.stockPrice)}
+                {num(tx.order.stockQuantity)} × {fmtINR(tx.order.stockPrice)}
               </div>
               <div className="text-xs text-muted-foreground">
-                Total: {num(tx.order.stockTotal)}
+                Total: {fmtINR(tx.order.stockTotal)}
               </div>
             </div>
           </div>

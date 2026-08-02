@@ -36,6 +36,10 @@ function Home() {
     socket.emit("landing");
     return () => {
       socket.off("landing", handleUpdate);
+      // The server starts a 2s interval per socket for this feed and only stops
+      // it on an explicit request; the socket itself is a singleton that
+      // outlives the page, so without this it polls forever (review F-09).
+      socket.emit("landing:stop");
     };
   }, [handleUpdate]);
 

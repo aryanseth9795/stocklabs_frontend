@@ -8,6 +8,7 @@ import type { User, PLPoint, PLStats } from "./_component/types";
 import { serverApiUrl } from "@/constant/config";
 import axios from "axios";
 import { useAuth } from "@/lib/ContextApi";
+import { fmtINR } from "@/lib/format";
 import { Wallet, TrendingUp, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -53,11 +54,15 @@ export default function AccountPage() {
         params: { days },
         withCredentials: true,
       });
-      if (response.data) {
-        setPlStats(response.data);
+      // The endpoint wraps its payload: { success, data: { realizedPL, ... } }.
+      // This used to store the envelope, so realizedPL was undefined (rendered
+      // as 0) and the breakdown chart never populated (review F-04).
+      const stats = response.data?.data;
+      if (stats) {
+        setPlStats(stats);
         // Convert stats to chart data
-        if (response.data.symbolBreakdown) {
-          const chartData: PLPoint[] = response.data.symbolBreakdown.map(
+        if (Array.isArray(stats.symbolBreakdown)) {
+          const chartData: PLPoint[] = stats.symbolBreakdown.map(
             (item: { symbol: string; realizedPL: number }, idx: number) => ({
               date: new Date(Date.now() - idx * 24 * 60 * 60 * 1000)
                 .toISOString()
@@ -116,14 +121,15 @@ export default function AccountPage() {
 
         {/* Stats Grid */}
         <div className="grid gap-4 mb-6 md:grid-cols-2 lg:grid-cols-4">
+          {/* ₹, matching the server's ledger (review F-01). */}
           <StatCard
             label="Wallet Balance"
-            value={`$${(displayUser.balance ?? 0).toFixed(2)}`}
+            value={fmtINR(displayUser.balance ?? 0)}
             icon={<Wallet className="h-5 w-5 text-indigo-400" />}
           />
           <StatCard
             label="Total Invested"
-            value={`$${(displayUser.totalInvested ?? 0).toFixed(2)}`}
+            value={fmtINR(displayUser.totalInvested ?? 0)}
             icon={<TrendingUp className="h-5 w-5 text-emerald-400" />}
           />
           <StatCard
@@ -133,7 +139,7 @@ export default function AccountPage() {
           />
           <StatCard
             label="Realized P/L"
-            value={`$${(plStats?.realizedPL ?? 0).toFixed(2)}`}
+            value={fmtINR(plStats?.realizedPL ?? 0)}
             positive={(plStats?.realizedPL ?? 0) >= 0}
             icon={<TrendingUp className="h-5 w-5" />}
           />
