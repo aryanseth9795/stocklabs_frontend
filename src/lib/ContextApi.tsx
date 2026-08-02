@@ -7,10 +7,9 @@ import React, {
   ReactNode,
 } from "react";
 import axios from "axios";
-
-const serverApiUrl = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1`
-  : "http://localhost:3000/api/v1";
+// Single source of truth. This file used to re-derive the API base itself and
+// fall back to port 3000 — the Next.js dev server, not the API (review F-11).
+import { serverApiUrl } from "@/constant/config";
 
 export type User = {
   id: string;

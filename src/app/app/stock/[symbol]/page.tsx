@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import BuySellDialog from "../../home/_component/buySellDialog";
 import { useAuth } from "@/lib/ContextApi";
+import { fmtINR } from "@/lib/format";
 
 // Types
 interface Stock {
@@ -75,7 +76,9 @@ export default function StockDetailPage() {
   const symbol = (params.symbol as string)?.toUpperCase() || "";
 
   const [liveStock, setLiveStock] = useState<Stock | null>(null);
-  const [interval, setInterval] = useState("15");
+  // Named chartInterval, not interval: a state setter called `setInterval`
+  // shadows the global setInterval for this whole component (review F-08).
+  const [chartInterval, setChartInterval] = useState("15");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [holdingQuantity, setHoldingQuantity] = useState(0);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
@@ -119,13 +122,20 @@ export default function StockDetailPage() {
     socket.on("landing", handleLandingUpdate);
     socket.on("Portfolio_info", handlePortfolioInfo);
     socket.emit("landing");
-    socket.emit("portfolio");
+    // Only ask for portfolio data when signed in. Guests triggered a server
+    // "error" event that nothing listened for (review F-13).
+    if (isAuthed) socket.emit("portfolio");
 
     return () => {
       socket.off("landing", handleLandingUpdate);
       socket.off("Portfolio_info", handlePortfolioInfo);
+      // Tell the server to stop its per-socket 2s pollers. Without these the
+      // pollers run for the life of the connection, long after this page is
+      // gone, because the socket is a never-disconnected singleton (F-09).
+      socket.emit("landing:stop");
+      if (isAuthed) socket.emit("portfolio:stop");
     };
-  }, [symbol]);
+  }, [symbol, isAuthed]);
 
   const isPositive = (liveStock?.stockChangePercentage ?? 0) >= 0;
 
@@ -160,7 +170,7 @@ export default function StockDetailPage() {
             new TradingView.widget({
               "autosize": true,
               "symbol": "${tradingViewSymbol}",
-              "interval": "${interval}",
+              "interval": "${chartInterval}",
               "timezone": "Asia/Kolkata",
               "theme": "dark",
               "style": "1",
@@ -192,7 +202,7 @@ export default function StockDetailPage() {
       </body>
     </html>
   `,
-    [tradingViewSymbol, interval],
+    [tradingViewSymbol, chartInterval],
   );
 
   const handleBuy = useCallback(() => {
@@ -238,7 +248,7 @@ export default function StockDetailPage() {
           <div className="flex items-center justify-between">
             <span className="text-lg font-semibold">{symbol}</span>
             <span className="text-lg font-semibold tabular-nums">
-              ${liveStock?.stockPrice?.toFixed(2) ?? "—"}
+              {liveStock ? fmtINR(liveStock.stockPriceINR) : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
@@ -260,10 +270,10 @@ export default function StockDetailPage() {
             key={item.value}
             onClick={() => {
               setChartLoading(true);
-              setInterval(item.value);
+              setChartInterval(item.value);
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              interval === item.value
+              chartInterval === item.value
                 ? "bg-indigo-500 text-white"
                 : "text-zinc-400 hover:bg-white/10"
             }`}
@@ -308,11 +318,18 @@ export default function StockDetailPage() {
             </div>
           </div>
         )}
+        {/*
+          `allow-same-origin` is deliberately omitted. Combined with
+          `allow-scripts` it voids the sandbox entirely: a srcDoc frame already
+          inherits this page's origin, so the third-party TradingView script
+          could reach window.parent and make authenticated API calls with the
+          session cookie (review F-07). The widget renders fine without it.
+        */}
         <iframe
           srcDoc={chartHtml}
           className="w-full h-full border-0"
           title="TradingView Chart"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           onLoad={() => setChartLoading(false)}
         />
       </div>
@@ -342,7 +359,7 @@ export default function StockDetailPage() {
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           stock={liveStock}
-          walletUSD={user?.balance || 0}
+          walletINR={user?.balance || 0}
           userId={user?.id || ""}
           accountfetch={accountfetch}
         />

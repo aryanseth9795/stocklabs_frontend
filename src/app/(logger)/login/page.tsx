@@ -19,6 +19,7 @@ import axios from "axios";
 import { serverApiUrl } from "@/constant/config";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/ContextApi";
+import { errorMessage } from "@/lib/format";
 
 const Login = () => {
   const router = useRouter();
@@ -45,8 +46,11 @@ const Login = () => {
       setIsAuthed(true);
       router.push("/app/home");
     } catch (error) {
-      toast.error("Something went wrong", { id: idtoast });
-      console.log(error);
+      // "Invalid Email or Password" is far more useful than "Something went
+      // wrong", and the server already sends it (review F-05).
+      toast.error(errorMessage(error, "Could not sign you in."), {
+        id: idtoast,
+      });
     }
   };
 
