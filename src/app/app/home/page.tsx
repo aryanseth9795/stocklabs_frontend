@@ -18,11 +18,35 @@ function Home() {
     stockChangeINR: number;
     stockChangePercentage: number;
     ts: string;
+    /** Epoch ms of the tick — `ts` is a display string and cannot be compared. */
+    tsMs: number;
   }
 
   const { user, setUser, setIsAuthed, isAuthed } = useAuth();
   const router = useRouter();
   const [data, setData] = React.useState<Stock[]>([]);
+
+  /**
+   * One freshness line for the whole board, instead of repeating a timestamp on
+   * all 50 cards.
+   *
+   * Deliberately derived from the newest *tick* rather than from when this
+   * component last received a payload: the server re-emits the board every 2s
+   * whether or not prices moved, so render time would tick along happily while
+   * the upstream feed was dead — which is exactly the failure that made a stale
+   * board look live in production.
+   *
+   * Rendered in IST for every viewer, matching the server, so a user abroad does
+   * not see a different "last updated" than the market data implies.
+   */
+  const lastUpdated = React.useMemo(() => {
+    if (!data.length) return null;
+    const newest = Math.max(...data.map((s) => s.tsMs ?? 0));
+    if (!newest) return null;
+    return new Date(newest).toLocaleTimeString("en-US", {
+      timeZone: "Asia/Kolkata",
+    });
+  }, [data]);
 
   // Handle websocket updates for stock data - runs immediately without auth
   const handleUpdate = useCallback((payload: Stock[]) => {
@@ -85,6 +109,14 @@ function Home() {
             </span>
             Learn, Trade, Win – Without the Risk.
           </div>
+
+          {lastUpdated && (
+            <div className="shrink-0 pl-4 text-[11px] sm:text-xs text-white/50 whitespace-nowrap">
+              Last updated:{" "}
+              <span className="text-white/70 tabular-nums">{lastUpdated}</span>
+              <span className="ml-1 text-white/40">IST</span>
+            </div>
+          )}
         </div>
 
         <UserInfo

@@ -76,19 +76,34 @@ function BuySellDialog({
 
   const { isAuthed } = useAuth();
 
+  // `stock` is a live object off the socket board — a NEW object identity on
+  // every tick, about once a second. Depending on it below re-ran this effect
+  // on every tick, so the reset wiped whatever the user was typing: the amount
+  // and quantity fields emptied themselves mid-keystroke and the order could
+  // never be submitted. It also meant `lockedPrice` was re-locked to the latest
+  // price every second, which is the opposite of what locking is for.
+  //
+  // The reset belongs to the dialog OPENING (or being pointed at a different
+  // stock), so depend on the symbol — a stable string — not the object.
+  const symbol = stock?.stocksymbol ?? null;
+
+  // Read through a ref so the price is captured at open time without making the
+  // effect depend on the ticking object.
+  const stockRef = React.useRef(stock);
+  stockRef.current = stock;
+
   React.useEffect(() => {
     if (!isAuthed) return;
-    if (open && stock) {
-      setAction("buy");
-      setIsIntraday(false);
-      setMode("amount");
-      setAmountStr("");
-      setQtyStr("");
-      // INR, matching the server's ledger and the mobile app. Reading
-      // stockPrice (USD) here is what made the whole page mis-price (F-01).
-      setLockedPrice(Number(stock.stockPriceINR));
-    }
-  }, [open, stock, isAuthed]);
+    if (!open || !symbol) return;
+    setAction("buy");
+    setIsIntraday(false);
+    setMode("amount");
+    setAmountStr("");
+    setQtyStr("");
+    // INR, matching the server's ledger and the mobile app. Reading
+    // stockPrice (USD) here is what made the whole page mis-price (F-01).
+    setLockedPrice(Number(stockRef.current?.stockPriceINR));
+  }, [open, symbol, isAuthed]);
 
   const price = lockedPrice ?? stock?.stockPriceINR ?? 0;
   const isBuy = action === "buy";
