@@ -18,6 +18,12 @@ export type PLStats = {
   totalSellCount: number;
   totalTrades: number;
   avgTradeSize: number;
+  /**
+   * Realized P/L per IST calendar day, zero-filled and ascending, ending today.
+   * Sums to exactly `realizedPL` — the server guarantees it, so the chart and
+   * the stat card beside it cannot disagree.
+   */
+  dailyPL: PLPoint[];
   symbolBreakdown: Array<{
     symbol: string;
     realizedPL: number;

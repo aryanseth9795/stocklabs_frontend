@@ -60,17 +60,15 @@ export default function AccountPage() {
       const stats = response.data?.data;
       if (stats) {
         setPlStats(stats);
-        // Convert stats to chart data
-        if (Array.isArray(stats.symbolBreakdown)) {
-          const chartData: PLPoint[] = stats.symbolBreakdown.map(
-            (item: { symbol: string; realizedPL: number }, idx: number) => ({
-              date: new Date(Date.now() - idx * 24 * 60 * 60 * 1000)
-                .toISOString()
-                .slice(0, 10),
-              value: item.realizedPL,
-            }),
-          );
-          setPlData(chartData);
+        // The chart is a date axis, and the server now returns a real one:
+        // realized P/L per IST day, zero-filled, ending today.
+        //
+        // This used to build a "timeline" out of symbolBreakdown by walking
+        // back one day per array index — so the first symbol was labelled
+        // today, the second yesterday, and every date on the chart was
+        // invented. Per-symbol totals were never a time series.
+        if (Array.isArray(stats.dailyPL)) {
+          setPlData(stats.dailyPL);
         }
       }
     } catch (error) {
@@ -78,14 +76,32 @@ export default function AccountPage() {
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+    await Promise.all([fetchUserDetail(), fetchPLStats(30)]);
+  }, [fetchUserDetail, fetchPLStats]);
+
   useEffect(() => {
-    if (isAuthed) {
-      const loadData = async () => {
-        await Promise.all([fetchUserDetail(), fetchPLStats(30)]);
-      };
-      loadData();
-    }
-  }, [fetchUserDetail, fetchPLStats, isAuthed]);
+    if (isAuthed) refresh();
+  }, [refresh, isAuthed]);
+
+  // Balance and P/L only move when the user trades, and trading happens on
+  // other pages — so polling would send identical requests every few seconds
+  // for nothing. Refetching when the tab comes back into view covers the case
+  // that actually matters: trade elsewhere, return here, see current numbers.
+  useEffect(() => {
+    if (!isAuthed) return;
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [refresh, isAuthed]);
 
   const displayUser: User = userDetail || {
     name: authUser?.name || "User",
@@ -94,15 +110,12 @@ export default function AccountPage() {
     totalInvested: authUser?.totalInvested,
   };
 
-  // Generate demo data if no real data
-  const displayPL: PLPoint[] =
-    plData.length > 0
-      ? plData
-      : Array.from({ length: 30 }).map((_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() - (29 - i));
-          return { date: d.toISOString().slice(0, 10), value: 0 };
-        });
+  // No client-side fallback series any more. The server zero-fills every day in
+  // the window, so a user who has never traded gets a real all-zero series
+  // rather than 30 fabricated points labelled "demo data" — and an empty array
+  // now means the request genuinely failed, which the chart should show as
+  // empty rather than disguise as a flat line at zero.
+  const displayPL: PLPoint[] = plData;
 
   return (
     <div className="min-h-screen w-full bg-neutral-950 text-zinc-100 mb-20">
