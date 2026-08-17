@@ -128,7 +128,11 @@ function Home() {
           Auth={isAuthed}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {/* Denser than before: the cards lost the redundant lowercase name and
+            the "Price"/"Change" labels, so they are shorter and no longer need
+            a quarter of a 1280px viewport each. Two columns on phones, because
+            a price and a percentage fit side by side at that size. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {data?.length > 0
             ? data.map((stock, index) => (
                 <StockCard

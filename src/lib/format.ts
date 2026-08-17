@@ -17,6 +17,28 @@ export const fmtINR = (n: number, maximumFractionDigits = 2) =>
     maximumFractionDigits,
   });
 
+/**
+ * Rupee format with precision scaled to the magnitude.
+ *
+ * A flat two decimals works for BTC at ₹60,85,004.60 and renders SHIB — worth a
+ * few thousandths of a rupee — as a flat "₹0.00", along with a change of
+ * "+₹0.00". The board showed four such rows, all reading zero.
+ *
+ * Decimals are padded as well as capped so the digits sit in fixed columns and
+ * the number does not change width on every tick.
+ */
+export const fmtINRPrice = (n: number) => {
+  const v = Number.isFinite(n) ? n : 0;
+  const abs = Math.abs(v);
+  const digits = abs >= 100 ? 2 : abs >= 1 ? 2 : abs >= 0.01 ? 4 : abs >= 0.0001 ? 6 : 8;
+  return v.toLocaleString("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+};
+
 /** Compact rupee format for large figures (wallet balances, totals). */
 export const fmtINRCompact = (n: number) =>
   (Number.isFinite(n) ? n : 0).toLocaleString("en-IN", {
