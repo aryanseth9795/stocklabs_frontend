@@ -139,71 +139,45 @@ export default function StockDetailPage() {
 
   const isPositive = (liveStock?.stockChangePercentage ?? 0) >= 0;
 
-  // TradingView widget HTML with visible toolbars
-  const chartHtml = useMemo(
-    () => `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          html, body { 
-            height: 100%; 
-            width: 100%;
-            background: #050505;
-            overflow: hidden;
-          }
-          #chart-container {
-            height: 100%;
-            width: 100%;
-          }
-        </style>
-      </head>
-      <body>
-        <div id="chart-container">
-          <div class="tradingview-widget-container" style="height:100%;width:100%">
-            <div id="tradingview_chart" style="height:100%;width:100%"></div>
-          </div>
-          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-          <script type="text/javascript">
-            new TradingView.widget({
-              "autosize": true,
-              "symbol": "${tradingViewSymbol}",
-              "interval": "${chartInterval}",
-              "timezone": "Asia/Kolkata",
-              "theme": "dark",
-              "style": "1",
-              "locale": "en",
-              "toolbar_bg": "#050505",
-              "enable_publishing": false,
-              "hide_top_toolbar": false,
-              "hide_side_toolbar": false,
-              "hide_legend": false,
-              "save_image": true,
-              "hide_volume": false,
-              "container_id": "tradingview_chart",
-              "backgroundColor": "#050505",
-              "gridColor": "rgba(255, 255, 255, 0.03)",
-              "overrides": {
-                "paneProperties.background": "#050505",
-                "paneProperties.backgroundType": "solid",
-                "scalesProperties.backgroundColor": "#050505",
-                "mainSeriesProperties.candleStyle.upColor": "#10B981",
-                "mainSeriesProperties.candleStyle.downColor": "#EF4444",
-                "mainSeriesProperties.candleStyle.borderUpColor": "#10B981",
-                "mainSeriesProperties.candleStyle.borderDownColor": "#EF4444",
-                "mainSeriesProperties.candleStyle.wickUpColor": "#10B981",
-                "mainSeriesProperties.candleStyle.wickDownColor": "#EF4444"
-              }
-            });
-          </script>
-        </div>
-      </body>
-    </html>
-  `,
-    [tradingViewSymbol, chartInterval],
-  );
+  /**
+   * TradingView's own embed URL, loaded cross-origin.
+   *
+   * This used to build the widget inside a `srcDoc` iframe that loaded
+   * s3.tradingview.com/tv.js. That had to be sandboxed, because a `srcDoc`
+   * frame inherits THIS page's origin — so a third-party script running in it
+   * could reach `window.parent` and make authenticated calls with the session
+   * cookie (review F-07).
+   *
+   * The sandbox that fixed F-07 also broke the chart. `sandbox="allow-scripts"`
+   * without `allow-same-origin` gives the frame an opaque origin, and tv.js
+   * touches localStorage during initialisation — which throws a SecurityError
+   * on an opaque origin and kills the widget before it draws anything.
+   *
+   * Restoring `allow-same-origin` would bring the vulnerability back, so the
+   * frame no longer holds our origin at all: it points at tradingview.com and
+   * is therefore cross-origin by construction. The browser's same-origin policy
+   * does the isolation the sandbox attribute was being asked to fake, and the
+   * widget runs on its own origin with its own storage, so it works.
+   */
+  const chartUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      symbol: tradingViewSymbol,
+      interval: chartInterval,
+      timezone: "Asia/Kolkata",
+      theme: "dark",
+      style: "1",
+      locale: "en",
+      toolbarbg: "050505",
+      backgroundColor: "#050505",
+      gridColor: "rgba(255, 255, 255, 0.03)",
+      hidesidetoolbar: "0",
+      hidetoptoolbar: "0",
+      withdateranges: "1",
+      allow_symbol_change: "0",
+      saveimage: "1",
+    });
+    return `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+  }, [tradingViewSymbol, chartInterval]);
 
   const handleBuy = useCallback(() => {
     if (!isAuthed) {
@@ -319,17 +293,18 @@ export default function StockDetailPage() {
           </div>
         )}
         {/*
-          `allow-same-origin` is deliberately omitted. Combined with
-          `allow-scripts` it voids the sandbox entirely: a srcDoc frame already
-          inherits this page's origin, so the third-party TradingView script
-          could reach window.parent and make authenticated API calls with the
-          session cookie (review F-07). The widget renders fine without it.
+          Cross-origin `src`, not `srcDoc`. `allow-same-origin` is safe here and
+          was not safe before: it restores the frame's OWN origin, which is now
+          tradingview.com rather than ours. F-07 was specifically a `srcDoc`
+          problem — that frame inherited this page's origin, so the pair of
+          tokens handed a third-party script access to our cookies.
         */}
         <iframe
-          srcDoc={chartHtml}
+          src={chartUrl}
           className="w-full h-full border-0"
           title="TradingView Chart"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          referrerPolicy="origin"
           onLoad={() => setChartLoading(false)}
         />
       </div>

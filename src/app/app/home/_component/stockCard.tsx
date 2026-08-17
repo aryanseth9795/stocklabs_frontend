@@ -59,8 +59,6 @@ const StockCard = ({ stock, onClick }: StockCardProps) => {
           </p>
         </div>
       </div>
-
-      <div className="mt-4 text-[11px] text-white/50">Last update: {stock.ts}</div>
     </button>
   );
 };
