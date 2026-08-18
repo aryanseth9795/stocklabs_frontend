@@ -101,8 +101,12 @@ function Home() {
         <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_bottom,rgba(99,102,241,0.10),rgba(0,0,0,0))]" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 md:py-10 flex flex-col gap-8">
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 sm:p-5 flex items-center justify-between">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-navbar flex flex-col gap-6 sm:gap-8">
+        {/* Stacks below the phone breakpoint. Side by side, the nowrap
+            timestamp took its width first and left the tagline a ~170px
+            column, which broke "Learn, Trade, Win – Without the Risk." across
+            three ragged lines beside it. */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 sm:p-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="text-sm sm:text-base text-white/80">
             <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs mr-3">
               Dashboard
@@ -111,7 +115,7 @@ function Home() {
           </div>
 
           {lastUpdated && (
-            <div className="shrink-0 pl-4 text-[11px] sm:text-xs text-white/50 whitespace-nowrap">
+            <div className="shrink-0 text-[11px] sm:text-xs text-white/50 whitespace-nowrap">
               Last updated:{" "}
               <span className="text-white/70 tabular-nums">{lastUpdated}</span>
               <span className="ml-1 text-white/40">IST</span>
@@ -141,24 +145,24 @@ function Home() {
                   onClick={() => onCardClick(stock)}
                 />
               ))
-            : // Shimmer skeleton loading
+            : // Shimmer skeleton loading — same box, same padding, same three
+              // rows as StockCard, so the board does not jump when the first
+              // tick lands. The old placeholder had a 40px avatar the card has
+              // never drawn and stood more than twice as tall as the real
+              // thing, which dropped the page by several hundred pixels the
+              // moment data arrived. Widths are fractional for the same
+              // reason the card's type is: the column is 126px on a phone.
               Array.from({ length: 8 }).map((_, index) => (
                 <div
                   key={index}
-                  className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 animate-pulse"
+                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:p-4 animate-pulse"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-10 w-10 rounded-full bg-white/10" />
-                    <div className="h-4 w-16 rounded bg-white/10" />
+                  <div className="flex items-center justify-between gap-1.5 mb-3">
+                    <div className="h-[11px] w-1/2 rounded bg-white/10" />
+                    <div className="h-[11px] w-2/5 rounded bg-white/10" />
                   </div>
-                  <div className="space-y-3">
-                    <div className="h-5 w-24 rounded bg-white/10" />
-                    <div className="h-7 w-32 rounded bg-white/10" />
-                    <div className="flex gap-2">
-                      <div className="h-4 w-20 rounded bg-white/10" />
-                      <div className="h-4 w-12 rounded bg-white/10" />
-                    </div>
-                  </div>
+                  <div className="h-[22px] w-4/5 rounded bg-white/10" />
+                  <div className="mt-1.5 h-3 w-3/5 rounded bg-white/10" />
                 </div>
               ))}
         </div>

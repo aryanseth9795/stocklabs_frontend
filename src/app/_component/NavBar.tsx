@@ -27,26 +27,53 @@ const Navbar = () => {
   const seg = appIdx >= 0 && parts[appIdx + 1] ? parts[appIdx + 1] : "home";
   const active = nameMap[seg.toLowerCase()] ?? "Home";
 
+  /**
+   * Five tabs, always.
+   *
+   * Login used to be a sixth <li> appended to a `grid-cols-5` list, so on a
+   * logged-out phone it fell onto a second row on its own and doubled the
+   * height of the bar. It takes the Account slot instead: a signed-out visitor
+   * cannot use /app/account anyway — it renders a blurred page behind a "Login
+   * Required" dialog whose only real action is that same /login link.
+   */
   const navItems = [
-    { name: "Home", Icon: House },
-    { name: "Commodities", Icon: Gem },
-    { name: "Portfolio", Icon: BriefcaseBusiness },
-    { name: "History", Icon: ChartCandlestick },
-    { name: "Account", Icon: User },
+    { name: "Home", href: "/app/home", Icon: House, accent: false },
+    { name: "Commodities", href: "/app/commodities", Icon: Gem, accent: false },
+    {
+      name: "Portfolio",
+      href: "/app/portfolio",
+      Icon: BriefcaseBusiness,
+      accent: false,
+    },
+    {
+      name: "History",
+      href: "/app/history",
+      Icon: ChartCandlestick,
+      accent: false,
+    },
+    isAuthed
+      ? { name: "Account", href: "/app/account", Icon: User, accent: false }
+      : { name: "Login", href: "/login", Icon: LogIn, accent: true },
   ];
 
   return (
-    <div className="sticky bottom-0 z-50 w-full border-t border-white/10 bg-white/5 backdrop-blur supports-[backdrop-filter]:bg-black/40 text-white">
+    <div className="w-full border-t border-white/10 bg-white/5 backdrop-blur supports-[backdrop-filter]:bg-black/40 text-white pb-[env(safe-area-inset-bottom)]">
       <nav className="mx-auto max-w-3xl">
-        <ul className="relative grid grid-cols-5 gap-1 px-3 py-2">
-          {navItems.map(({ name, Icon }) => {
+        {/* `grid-flow-col auto-cols-fr` splits the row evenly across however
+            many tabs there are, so nothing can wrap onto a second line. */}
+        <ul className="relative grid grid-flow-col auto-cols-fr gap-0.5 px-1 py-2 sm:gap-1 sm:px-3">
+          {navItems.map(({ name, href, Icon, accent }) => {
             const isActive = active === name;
             return (
-              <li key={name} className="relative">
+              <li key={name} className="relative min-w-0">
                 <Link
-                  href={`/app/${name.toLowerCase()}`}
-                  className={`group flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition ${
-                    isActive ? "text-white" : "text-white/70 hover:text-white"
+                  href={href}
+                  className={`group flex flex-col items-center justify-center gap-1 rounded-2xl px-0 py-2 transition sm:px-2 ${
+                    accent
+                      ? "text-emerald-400 hover:text-emerald-300"
+                      : isActive
+                        ? "text-white"
+                        : "text-white/70 hover:text-white"
                   }`}
                   aria-current={isActive ? "page" : undefined}
                 >
@@ -62,7 +89,13 @@ const Navbar = () => {
                       />
                     )}
                   </div>
-                  <span className="text-[11px] leading-none">{name}</span>
+                  {/* "Commodities" is eleven characters of Merriweather in a
+                      fifth of a phone: at a flat 11px it overran its cell and
+                      crowded its neighbour. The size tracks the viewport
+                      instead, and truncate is the backstop. */}
+                  <span className="w-full truncate text-center text-[clamp(9px,2.6vw,11px)] leading-none tracking-tight sm:tracking-normal">
+                    {name}
+                  </span>
                 </Link>
                 {isActive && (
                   <span
@@ -73,24 +106,6 @@ const Navbar = () => {
               </li>
             );
           })}
-
-          {/* Login Button - only shown when not authenticated */}
-          {!isAuthed && (
-            <li className="relative">
-              <Link
-                href="/login"
-                className="group flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition text-emerald-400 hover:text-emerald-300"
-              >
-                <div className="relative">
-                  <LogIn
-                    size={24}
-                    className="transition group-hover:scale-105"
-                  />
-                </div>
-                <span className="text-[11px] leading-none">Login</span>
-              </Link>
-            </li>
-          )}
         </ul>
       </nav>
     </div>

@@ -120,3 +120,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+/**
+ * Clearance for the fixed bottom tab bar (src/app/_component/NavBar.tsx), plus
+ * whatever the device reserves for its own home indicator.
+ *
+ * Belongs on a page's inner container rather than on its `min-h-screen` root:
+ * padding inside the full-height box keeps content off the bar, where a margin
+ * or padding outside it would add a bar's worth of dead scroll to every page.
+ */
+@utility pb-navbar {
+  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}

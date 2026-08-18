@@ -55,9 +55,22 @@ const StockCard = ({ stock, onClick }: StockCardProps) => {
   const accent = isUp ? "text-emerald-400" : "text-rose-400";
 
   return (
+    /**
+     * Type sizes are container-relative, not fixed.
+     *
+     * At two columns on a phone this card is ~126px of usable width, and a
+     * flat 22px price rendered "₹61,20,400.65" about 45px wider than that —
+     * BTC's price ran straight across the gutter and over the card beside it.
+     * The monospace stack advances at ~0.6em per glyph, so a 13-glyph rupee
+     * figure fits when the size stays under ~12.8% of the container; the clamp
+     * is set just inside that, and grows back to the original 22px once the
+     * card is wide enough to carry it. `overflow-hidden` is the hard stop, so
+     * an unexpectedly long figure clips at this card's own edge instead of
+     * being painted over its neighbour.
+     */
     <button
       onClick={onClick}
-      className={`group relative w-full text-left rounded-xl border bg-white/[0.03] p-4
+      className={`group @container relative w-full min-w-0 overflow-hidden text-left rounded-xl border bg-white/[0.03] p-3 sm:p-4
         transition-[border-color,background-color,transform] duration-200
         hover:bg-white/[0.06] hover:-translate-y-0.5
         outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60
@@ -73,13 +86,16 @@ const StockCard = ({ stock, onClick }: StockCardProps) => {
       {/* Symbol is a label, not a headline — small, tracked, quiet. The
           lowercase duplicate that sat beneath it carried no information: the
           feed sets stockName to the symbol in lower case. */}
-      <div className="flex items-baseline justify-between gap-2 mb-3">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55 truncate">
+      <div className="flex items-baseline justify-between gap-1.5 mb-3">
+        {/* Tracking is loosened only once there is room for it. At 0.14em on a
+            phone an eight-letter ticker no longer fit beside its percentage,
+            which is why the board read "DOGEUS…" and "AVAXUS…". */}
+        <span className="truncate text-[clamp(9px,7cqi,11px)] font-semibold uppercase tracking-[0.06em] @[150px]:tracking-[0.14em] text-white/55">
           {stock.stocksymbol}
         </span>
         {/* Percentage appears here and nowhere else. It used to print twice. */}
         <span
-          className={`${NUM} shrink-0 text-[11px] font-medium ${accent}`}
+          className={`${NUM} shrink-0 text-[clamp(9px,7cqi,11px)] font-medium ${accent}`}
           aria-label={`${isUp ? "up" : "down"} ${Math.abs(pct)} percent`}
         >
           {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(2)}%
@@ -87,11 +103,13 @@ const StockCard = ({ stock, onClick }: StockCardProps) => {
       </div>
 
       {/* INR, matching the server ledger and the mobile app (review F-01). */}
-      <div className={`${NUM} text-[22px] font-semibold leading-none text-white`}>
+      <div
+        className={`${NUM} text-[clamp(0.875rem,12.5cqi,1.375rem)] font-semibold leading-none text-white`}
+      >
         {fmtINRPrice(stock.stockPriceINR)}
       </div>
 
-      <div className={`${NUM} mt-1.5 text-[12px] ${accent}`}>
+      <div className={`${NUM} mt-1.5 text-[clamp(10px,7cqi,12px)] ${accent}`}>
         {isUp ? "+" : "−"}
         {fmtINRPrice(Math.abs(stock.stockChangeINR))}
       </div>

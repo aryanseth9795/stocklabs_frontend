@@ -118,10 +118,10 @@ export default function AccountPage() {
   const displayPL: PLPoint[] = plData;
 
   return (
-    <div className="min-h-screen w-full bg-neutral-950 text-zinc-100 mb-20">
+    <div className="min-h-screen w-full bg-neutral-950 text-zinc-100">
       {/* Content with blur when not authenticated */}
       <div
-        className={`mx-auto max-w-7xl px-4 py-6 ${!isAuthed ? "blur-sm pointer-events-none" : ""}`}
+        className={`mx-auto max-w-7xl px-4 pt-6 pb-navbar ${!isAuthed ? "blur-sm pointer-events-none" : ""}`}
       >
         <header className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -168,7 +168,7 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="mt-10 mb-20">
+        <div className="mt-10">
           <LogoutCard />
         </div>
       </div>

@@ -386,23 +386,25 @@ export default function CommoditiesPage() {
     : null;
 
   return (
-    <div className="min-h-screen w-full bg-neutral-950 text-zinc-100 pb-20">
+    <div className="min-h-screen w-full bg-neutral-950 text-zinc-100">
       {/* Auth guard blur */}
       <div
-        className={`mx-auto max-w-5xl px-4 py-6 ${!isAuthed ? "blur-sm pointer-events-none" : ""}`}
+        className={`mx-auto max-w-5xl px-4 pt-6 pb-navbar ${!isAuthed ? "blur-sm pointer-events-none" : ""}`}
       >
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
               Commodities
             </h1>
-            <p className="text-sm text-zinc-400">
+            <p className="truncate text-xs sm:text-sm text-zinc-400">
               MCX Real-Time • Prices in ₹ INR
             </p>
           </div>
+          {/* The status pill keeps its width; the heading beside it is what
+              gives, so "Connecting…" cannot push it off the row. */}
           <div
-            className={`flex items-center gap-2 rounded-xl px-3 py-1.5 border text-xs ${
+            className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-1.5 border text-xs ${
               connected
                 ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                 : "border-white/10 bg-white/5 text-zinc-400"
@@ -479,30 +481,32 @@ export default function CommoditiesPage() {
                     setTradeOpen(true);
                   }}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{meta?.emoji ?? "📦"}</span>
-                      <div>
-                        <div className="font-semibold text-zinc-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="shrink-0 text-3xl">
+                        {meta?.emoji ?? "📦"}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-zinc-100">
                           {c.symbol}
                         </div>
-                        <div className="text-xs text-zinc-400">
+                        <div className="truncate text-xs text-zinc-400">
                           {meta?.name ?? c.symbol}
                         </div>
-                        <div className="text-[10px] text-zinc-500 mt-0.5">
+                        <div className="truncate text-[10px] text-zinc-500 mt-0.5">
                           Exp: {c.expDate} • {meta?.unit}
                         </div>
                       </div>
                     </div>
                     <ShoppingCart
                       size={16}
-                      className="text-zinc-500 group-hover:text-zinc-300 transition mt-1"
+                      className="shrink-0 text-zinc-500 group-hover:text-zinc-300 transition mt-1"
                     />
                   </div>
 
-                  <div className="mt-4 flex items-end justify-between">
-                    <div>
-                      <div className="text-xl font-bold tabular-nums">
+                  <div className="mt-4 flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-lg sm:text-xl font-bold tabular-nums">
                         {fmtINR(c.price)}
                       </div>
                       <div
@@ -513,7 +517,7 @@ export default function CommoditiesPage() {
                       </div>
                     </div>
                     {pnl !== null && (
-                      <div className="text-right">
+                      <div className="shrink-0 text-right">
                         <div className="text-xs text-zinc-400">
                           {holding!.quantity.toFixed(3)} units
                         </div>

@@ -397,7 +397,7 @@ function PortfolioPage() {
     <div className="min-h-screen w-full bg-neutral-950 text-zinc-100">
       {/* Content with blur when not authenticated */}
       <div
-        className={`mx-auto max-w-7xl px-4 py-6 ${!isAuthed ? "blur-sm pointer-events-none" : ""}`}
+        className={`mx-auto max-w-7xl px-4 pt-6 pb-navbar ${!isAuthed ? "blur-sm pointer-events-none" : ""}`}
       >
         {/* Header + Greeting */}
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -708,8 +708,12 @@ function HoldingsTable({
         <h3 className="text-sm font-medium text-zinc-300">Holdings</h3>
       </div>
 
+      {/* `w-full` alone made the wrapper's overflow-x-auto dead weight: the
+          table sized itself to the container and squeezed seven columns into a
+          phone instead of scrolling. The minimum is what gives it something to
+          scroll. */}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full min-w-[640px] border-collapse">
           <thead className="text-xs uppercase text-zinc-400">
             <tr className="border-b border-white/5">
               <th className="py-2 pr-3 text-left">Symbol</th>
@@ -902,7 +906,7 @@ function ShortPositionsTable({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full min-w-[560px] border-collapse text-sm">
             <thead className="text-xs uppercase text-zinc-400">
               <tr className="border-b border-white/5">
                 <th className="py-2 pr-3 text-left">Symbol</th>

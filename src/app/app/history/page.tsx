@@ -55,10 +55,10 @@ const History = () => {
   }, [isTrade, isAuthed]);
 
   return (
-    <div className="p-6 md:p-8">
+    <div className="px-4 pt-4 sm:px-6 sm:pt-6 md:px-8 md:pt-8 pb-navbar">
       <div className="sticky top-0 z-10 bg-background/60 backdrop-blur-sm pb-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <h2 className="text-xl sm:text-2xl font-semibold">
             {isTrade ? "Trade History" : "Transaction History"}
           </h2>
           <Toggle isTrade={isTrade} setIsTrade={setIsTrade} />

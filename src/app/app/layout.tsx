@@ -10,10 +10,16 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const hideNavbar = pathname?.startsWith("/app/stock/");
 
   return (
-    <div className="h-screen w-full">
-      <main className="h-full w-full">{children}</main>
+    // `min-h-screen`, not `h-screen`: with a hard height and an `h-full` main,
+    // any page taller than the viewport was laid out inside a box it had
+    // already outgrown.
+    <div className="min-h-screen w-full">
+      <main className="w-full">{children}</main>
       {!hideNavbar && (
-        <footer className="text-center fixed bottom-0 left-0 w-full z-10">
+        // The bar floats over the board — pages reserve room for it with
+        // `pb-navbar` on their own inner container (see globals.css), so the
+        // last row of content is not left underneath it.
+        <footer className="fixed inset-x-0 bottom-0 z-50">
           <Navbar />
         </footer>
       )}
